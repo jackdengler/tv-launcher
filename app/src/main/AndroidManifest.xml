@@ -37,7 +37,6 @@
             android:excludeFromRecents="true"
             android:exported="true"
             android:launchMode="singleTask"
-            android:resumeWhilePaused="true"
             android:screenOrientation="landscape"
             android:stateNotNeeded="true"
             android:windowSoftInputMode="adjustNothing">

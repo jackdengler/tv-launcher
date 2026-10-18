@@ -65,7 +65,15 @@ object FantasyLoader {
     private fun logo(url: String, cookie: String?, problems: MutableList<String>): Bitmap? {
         if (url.isBlank()) return null
         synchronized(logos) { if (url in logos) return logos[url] }
-        val secure = if (url.startsWith("http://")) "https://" + url.removePrefix("http://") else url
+        val secure = when {
+            url.startsWith("https://") -> url
+            url.startsWith("http://") -> "https://" + url.removePrefix("http://")
+            url.startsWith("//") -> "https:$url"
+            else -> {
+                problems += "Team picture: unsupported link ${url.take(40)}"
+                return null
+            }
+        }
         val bmp = runCatching {
             val c = (URL(secure).openConnection() as HttpURLConnection).apply {
                 connectTimeout = 10_000
@@ -84,7 +92,10 @@ object FantasyLoader {
             } finally {
                 c.disconnect()
             }
-        }.onFailure { problems += "Team picture ${URL(secure).host}: ${it.message}" }
+        }.onFailure { e ->
+            val host = runCatching { URL(secure).host }.getOrDefault(secure.take(40))
+            problems += "Team picture $host: ${e.message}"
+        }
             .getOrNull()
             ?.let { if (it.width > 160) Bitmap.createScaledBitmap(it, 160, 160 * it.height / it.width, true) else it }
         // Only successes are cached, so a failed picture is retried on the next refresh.

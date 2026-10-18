@@ -17,6 +17,7 @@ import com.jackdengler.quiet.data.Prefs
 import com.jackdengler.quiet.data.Watched
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -38,7 +39,14 @@ class QuietAccessibilityService : AccessibilityService() {
     private var stockLaunchers: Set<String> = emptySet()
     private var lastLaunch = 0L
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    // An error in any overlay job is recorded and that job ends; it must never crash Quiet
+    // (which would also take down the launcher and switch this service off).
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Main.immediate + CoroutineExceptionHandler { _, e ->
+            val text = "${e.javaClass.simpleName}: ${e.message?.take(160)}"
+            (application as? QuietApp)?.prefs?.putCached(Espn.STATUS, "Overlay error: $text")
+        },
+    )
     private var overlay: FantasyOverlay? = null
     private var overlayJob: Job? = null
     private var quietInFront = false
@@ -93,39 +101,50 @@ class QuietAccessibilityService : AccessibilityService() {
         if (prefs.espnPlays) playJob = scope.launch { watchPlays(prefs) }
         overlayJob = scope.launch {
             while (isActive) {
-                val now = Calendar.getInstance()
-                val screenOn = getSystemService(PowerManager::class.java).isInteractive
-                if (screenOn && !quietInFront && (prefs.espnAlways || Espn.inGameWindow(now))) {
-                    val result = withContext(Dispatchers.IO) { FantasyLoader.load(prefs, onlyShown = true, now = now) }
-                    latest = result
-                    val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(now.time)
-                    val cards = result.cards.map { it.second }
-                    prefs.putCached(
-                        Espn.STATUS,
-                        (listOf("Updated $time") + result.cards.map { (n, c) -> "League $n: ${c.score.headline}" } + result.errors)
-                            .joinToString(" · "),
-                    )
-                    if (!quietInFront) overlay?.show(cards, prefs.espnStyle, prefs.espnCorner)
-                    if (cards.any { it.leadChange != 0 }) {
-                        // Celebrate (or commiserate) for a moment, then settle back.
-                        highlightJob?.cancel()
-                        highlightJob = scope.launch {
-                            delay(LEAD_HIGHLIGHT_MS)
-                            val calm = cards.map { LeagueCard(it.score, it.history, it.myLogo, it.oppLogo) }
-                            if (!quietInFront) overlay?.show(calm, prefs.espnStyle, prefs.espnCorner)
-                        }
-                    }
-                } else {
-                    overlay?.hide()
-                    val why = when {
-                        !screenOn -> "Screen off"
-                        quietInFront -> "Hidden while Quiet is on screen"
-                        else -> "Outside game windows (Thu/Mon 7 pm, Sun 6 am). Set When to show: Always to test"
-                    }
-                    prefs.putCached(Espn.STATUS, why)
+                try {
+                    overlayTick(prefs)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    prefs.putCached(Espn.STATUS, "Overlay error: ${e.javaClass.simpleName}: ${e.message?.take(160)}")
                 }
                 delay(OVERLAY_REFRESH_MS)
             }
+        }
+    }
+
+    /** One refresh of the scorebug: fetch, show or hide, and record a status line. */
+    private suspend fun overlayTick(prefs: Prefs) {
+        val now = Calendar.getInstance()
+        val screenOn = getSystemService(PowerManager::class.java).isInteractive
+        if (screenOn && !quietInFront && (prefs.espnAlways || Espn.inGameWindow(now))) {
+            val result = withContext(Dispatchers.IO) { FantasyLoader.load(prefs, onlyShown = true, now = now) }
+            latest = result
+            val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(now.time)
+            val cards = result.cards.map { it.second }
+            prefs.putCached(
+                Espn.STATUS,
+                (listOf("Updated $time") + result.cards.map { (n, c) -> "League $n: ${c.score.headline}" } + result.errors)
+                    .joinToString(" · "),
+            )
+            if (!quietInFront) overlay?.show(cards, prefs.espnStyle, prefs.espnCorner)
+            if (cards.any { it.leadChange != 0 }) {
+                // Celebrate (or commiserate) for a moment, then settle back.
+                highlightJob?.cancel()
+                highlightJob = scope.launch {
+                    delay(LEAD_HIGHLIGHT_MS)
+                    val calm = cards.map { LeagueCard(it.score, it.history, it.myLogo, it.oppLogo) }
+                    if (!quietInFront) overlay?.show(calm, prefs.espnStyle, prefs.espnCorner)
+                }
+            }
+        } else {
+            overlay?.hide()
+            val why = when {
+                !screenOn -> "Screen off"
+                quietInFront -> "Hidden while Quiet is on screen"
+                else -> "Outside game windows (Thu/Mon 7 pm, Sun 6 am). Set When to show: Always to test"
+            }
+            prefs.putCached(Espn.STATUS, why)
         }
     }
 
@@ -175,7 +194,7 @@ class QuietAccessibilityService : AccessibilityService() {
                     for (play in plays) {
                         if (!seen.add(play.id)) continue
                         val stamp = if (play.wallclock > 0) play else play.copy(wallclock = System.currentTimeMillis())
-                        Plays.match(stamp, inGame).forEach { queue.trySend(it) }
+                        runCatching { Plays.match(stamp, inGame) }.getOrDefault(emptyList()).forEach { queue.trySend(it) }
                     }
                 }
             }

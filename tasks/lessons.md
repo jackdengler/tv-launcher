@@ -15,3 +15,7 @@
 - **"It doesn't show up" needs a status line on day one.** Every network-fed feature gets a
   visible "last sync" summary in settings, and gets a second source when the first is
   unverified.
+- **Background services need a CoroutineExceptionHandler and per-iteration try/catch.** A
+  coroutine scope without one turns any stray exception (here: `URL(...)` on a protocol-
+  relative logo link, inside an `onFailure` block) into a process crash, which kills the
+  launcher and the overlay together. Never call code that can throw from an error handler.

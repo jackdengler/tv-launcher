@@ -75,7 +75,12 @@ class FantasyCardView(context: Context) : View(context) {
         setMeasuredDimension(((cardW + 24f) * u).roundToInt(), ((h + 24f) * u).roundToInt().coerceAtLeast(1))
     }
 
+    // A drawing error must not crash Quiet; skip the frame instead.
     override fun onDraw(canvas: Canvas) {
+        runCatching { drawAll(canvas) }
+    }
+
+    private fun drawAll(canvas: Canvas) {
         val u = unit
         canvas.save()
         canvas.scale(u, u)

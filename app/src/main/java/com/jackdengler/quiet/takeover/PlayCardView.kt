@@ -38,7 +38,12 @@ class PlayCardView(context: Context) : View(context) {
         setMeasuredDimension(((cardW + 24f) * unit).roundToInt(), ((cardH + 12f) * unit).roundToInt())
     }
 
+    // A drawing error must not crash Quiet; skip the frame instead.
     override fun onDraw(canvas: Canvas) {
+        runCatching { drawAll(canvas) }
+    }
+
+    private fun drawAll(canvas: Canvas) {
         val p = pop ?: return
         canvas.save()
         canvas.scale(unit, unit)

@@ -53,7 +53,12 @@ That can't be avoided without a computer.
 
 ## 4. Updating
 
-Repeat step 2 with the same URL. The new APK installs over the old one and keeps your settings,
+**One click:** open **All apps**. When a newer build exists, an **Update Quiet** card appears
+first. Select it, then confirm **Update** on the system prompt. You can also go to **Quiet settings →
+Update Quiet**, which always shows your current build. The first time, Android asks you to let
+Quiet install apps: turn that on, press Back, and select Update again.
+
+**Fallback:** repeat step 2 with the same URL in Downloader. Your settings are kept either way,
 because every build is signed with the same key, which is committed in this repo.
 
 ## 5. Everyday use

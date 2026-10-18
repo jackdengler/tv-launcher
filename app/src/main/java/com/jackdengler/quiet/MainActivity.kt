@@ -45,6 +45,10 @@ import com.jackdengler.quiet.photos.Playlist
 import com.jackdengler.quiet.settings.SettingsScreen
 import com.jackdengler.quiet.ui.DesignPixels
 import com.jackdengler.quiet.ui.LocalAccent
+import com.jackdengler.quiet.update.Updater
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -204,11 +208,20 @@ private fun QuietRoot(
                     app.prefs.onboardingSeen = true
                     navigate(Screen.Home)
                 }
-                Screen.AllApps -> AllAppsScreen(
-                    app.apps,
-                    onBack = { navigate(Screen.Home) },
-                    extras = listOf("Quiet settings" to { navigate(Screen.Settings) }),
-                )
+                Screen.AllApps -> {
+                    val context = LocalContext.current
+                    val scope = rememberCoroutineScope()
+                    LaunchedEffect(Unit) { Updater.check() }
+                    val update = Updater.state as? Updater.State.Available
+                    AllAppsScreen(
+                        app.apps,
+                        onBack = { navigate(Screen.Home) },
+                        extras = listOfNotNull(
+                            "Quiet settings" to { navigate(Screen.Settings) },
+                            update?.let { "Update Quiet (build ${it.build})" to { scope.launch { Updater.install(context) }; Unit } },
+                        ),
+                    )
+                }
                 Screen.Settings -> SettingsScreen(
                     app.prefs,
                     onBack = { navigate(Screen.AllApps) },

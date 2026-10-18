@@ -56,6 +56,7 @@ import com.jackdengler.quiet.data.Prefs
 import com.jackdengler.quiet.ui.LocalAccent
 import com.jackdengler.quiet.ui.QuietFonts
 import com.jackdengler.quiet.ui.tvClickable
+import com.jackdengler.quiet.update.Updater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -90,6 +91,8 @@ fun SettingsScreen(prefs: Prefs, onBack: () -> Unit, onHomeSetup: () -> Unit) {
         Title("Quiet settings")
         Spacer(Modifier.height(20.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 80.dp)) {
+            item { Section("Quiet") }
+            item { UpdateRow() }
             item { Section("Home screen") }
             item {
                 SettingRow("Weather location", prefs.placeName, Modifier.focusRequester(first)) { locating = true }
@@ -305,6 +308,35 @@ private fun LocationEditor(prefs: Prefs, onClose: () -> Unit) {
         results?.let { list ->
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 list.forEach { p -> SettingRow(p.name, "%.2f, %.2f".format(p.latitude, p.longitude)) { choose(p) } }
+            }
+        }
+    }
+}
+
+/** One-click update: checks GitHub when shown; selecting it installs the newer build. */
+@Composable
+fun UpdateRow(modifier: Modifier = Modifier) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) { Updater.check() }
+    val current = com.jackdengler.quiet.BuildConfig.VERSION_CODE
+    val value = when (val st = Updater.state) {
+        Updater.State.Idle, Updater.State.Checking -> "Checking… (build $current)"
+        Updater.State.UpToDate -> "Up to date (build $current)"
+        is Updater.State.Available -> "Update to build ${st.build}: select to install"
+        is Updater.State.Downloading -> "Downloading… ${st.percent}%"
+        Updater.State.Installing -> "Confirm the install on screen"
+        is Updater.State.Failed -> "${st.message}. Select to retry"
+    }
+    SettingRow("Update Quiet", value, modifier) {
+        scope.launch {
+            when (Updater.state) {
+                is Updater.State.Available -> Updater.install(context)
+                is Updater.State.Downloading, Updater.State.Installing -> Unit
+                else -> {
+                    Updater.check(force = true)
+                    if (Updater.state is Updater.State.Available) Updater.install(context)
+                }
             }
         }
     }

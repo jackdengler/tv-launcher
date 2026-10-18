@@ -78,6 +78,9 @@ class BackdropState {
     /** Seconds since the backdrop started; drives the living effects. Read in draw only. */
     internal val clock = androidx.compose.runtime.mutableFloatStateOf(0f)
 
+    /** True while the live camera covers the photo: frosted glass then uses a plain dark tint. */
+    var liveCover by mutableStateOf(false)
+
     /** Night/ambient treatment for the photo (dim, desaturate). Read in draw. */
     var filter by mutableStateOf<ColorFilter?>(null)
 
@@ -116,6 +119,10 @@ class BackdropState {
      * [frost] selects the small pre-blurred copy used by tiles and pills.
      */
     fun DrawScope.drawPhotos(origin: Offset = Offset.Zero, frost: Boolean = false) {
+        if (frost && liveCover) {
+            drawRect(Color(0xFF1B212B).copy(alpha = 0.62f))
+            return
+        }
         val target = if (screen == Size.Zero) size else screen
         val dst = IntSize(target.width.toInt(), target.height.toInt())
         for (layer in layers) {
@@ -155,15 +162,32 @@ fun nightFilter(t: Float): ColorFilter? {
 
 /** Full-screen photo with the two scrims: radial from the top-left, gradient at the bottom. */
 @Composable
-fun Backdrop(state: BackdropState, modifier: Modifier = Modifier, scrim: () -> Float = { 1f }, amber: () -> Float = { 0f }) {
+fun Backdrop(
+    state: BackdropState,
+    modifier: Modifier = Modifier,
+    scrim: () -> Float = { 1f },
+    amber: () -> Float = { 0f },
+    /** Drawn between the photo and the scrims (the live camera). */
+    live: @Composable () -> Unit = {},
+) {
     // A frame clock for the living effects; it pauses whenever Quiet isn't visible.
     androidx.compose.runtime.LaunchedEffect(state) {
         val start = androidx.compose.runtime.withFrameNanos { it }
         while (true) androidx.compose.runtime.withFrameNanos { state.clock.floatValue = (it - start) / 1e9f }
     }
-    Canvas(modifier.fillMaxSize()) {
-        state.capture(size)
-        with(state) { drawPhotos() }
+    androidx.compose.foundation.layout.Box(modifier.fillMaxSize()) {
+        Canvas(Modifier.fillMaxSize()) {
+            state.capture(size)
+            with(state) { drawPhotos() }
+        }
+        live()
+        Scrims(scrim, amber)
+    }
+}
+
+@Composable
+private fun Scrims(scrim: () -> Float, amber: () -> Float) {
+    Canvas(Modifier.fillMaxSize()) {
         val warm = amber()
         if (warm > 0f) drawRect(Color(0xFFFF9440).copy(alpha = 0.16f * warm))
         val dark = scrim()

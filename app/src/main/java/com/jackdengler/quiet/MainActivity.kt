@@ -178,7 +178,16 @@ private fun QuietRoot(
                 backdrop,
                 scrim = { 1f - 0.45f * idleT.value },
                 amber = { night.value },
-            )
+            ) {
+                if (app.prefs.background == "live") {
+                    val ids = remember(settingsVersion) { com.jackdengler.quiet.home.youtubeIds(app.prefs.liveCams) }
+                    if (ids.isNotEmpty()) {
+                        com.jackdengler.quiet.home.LiveCam(ids) { playing -> backdrop.liveCover = playing }
+                    }
+                } else {
+                    androidx.compose.runtime.SideEffect { backdrop.liveCover = false }
+                }
+            }
             when (screen) {
                 Screen.Home -> HomeScreen(
                     backdrop, app.apps, homeSignal,

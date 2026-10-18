@@ -61,6 +61,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private val BACKGROUND_LABELS = linkedMapOf(
+    "live" to "Live camera: Santa Monica Pier (photos if it's down)",
+    "photos" to "Santa Monica photos: live time of day & weather",
+    "mix" to "Photo mix",
+)
 private val STYLE_LABELS = linkedMapOf("bug" to "Scorebug", "card" to "Card with win chart", "full" to "Full rosters")
 private val CORNER_LABELS = linkedMapOf(
     "top-right" to "Top right", "top-left" to "Top left", "bottom-left" to "Bottom left", "bottom-right" to "Bottom right",
@@ -112,9 +117,19 @@ fun SettingsScreen(prefs: Prefs, onBack: () -> Unit, onHomeSetup: () -> Unit) {
             item { Section("Home screen") }
             item {
                 val context = androidx.compose.ui.platform.LocalContext.current
-                SettingRow("Background", if (prefs.santaMonica) "Santa Monica: live time of day & weather" else "Photo mix") {
-                    prefs.santaMonica = !prefs.santaMonica
+                SettingRow("Background", BACKGROUND_LABELS[prefs.background] ?: "Live camera") {
+                    val keys = BACKGROUND_LABELS.keys.toList()
+                    prefs.background = keys[(keys.indexOf(prefs.background) + 1) % keys.size]
                     com.jackdengler.quiet.photos.PhotoSyncWorker.syncNow(context)
+                }
+            }
+            item {
+                SettingRow("Live camera", prefs.liveCams) {
+                    editor = Editor(
+                        "Live camera",
+                        "YouTube live links or video ids, separated by spaces; the first that plays is used. Leave empty for the Santa Monica Pier cams.",
+                        prefs.liveCams, KeyboardType.Uri,
+                    ) { prefs.liveCams = it }
                 }
             }
             item {

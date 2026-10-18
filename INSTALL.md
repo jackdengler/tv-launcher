@@ -93,6 +93,15 @@ Open **All apps** and choose **Quiet settings**, the first tile:
 The overlay needs the Home button service from step 3 to be on. Broadcaster logos (FOX, CBS)
 are part of the picture and can't be removed; use **Corner** to stay out of their way.
 
+### Background
+
+**Quiet settings → Background** cycles through:
+- **Live camera** (default): a live YouTube stream of the Santa Monica Pier, muted. If it's
+  down, the Santa Monica photos show instead. Change the stream under **Live camera** by
+  pasting any YouTube live link with the phone keyboard.
+- **Santa Monica photos**, chosen by the real time of day and weather there.
+- **Photo mix.**
+
 ## 6. Adding your own photos
 
 From the GitHub app or website on your phone:

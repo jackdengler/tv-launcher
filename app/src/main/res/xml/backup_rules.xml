@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+: back up only Quiet's settings (not caches or photos) so a reinstall restores them. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="sharedpref" path="quiet.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="sharedpref" path="quiet.xml" />
+    </device-transfer>
+</data-extraction-rules>

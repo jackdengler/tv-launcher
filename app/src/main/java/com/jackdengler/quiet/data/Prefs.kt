@@ -39,10 +39,18 @@ class Prefs(context: Context) {
         set(v) = sp.edit().putString("rss", v.trim()).apply()
     val feeds: List<String> get() = rssUrl.split(Regex("[\\s,]+")).filter { it.startsWith("http") }
 
-    /** Background: live Santa Monica photos (default) or the general photo mix. */
-    var santaMonica: Boolean
-        get() = sp.getBoolean("bg_santa_monica", true)
-        set(v) = sp.edit().putBoolean("bg_santa_monica", v).apply()
+    /** Background: "live" (Santa Monica live camera, photos as fallback), "photos" (Santa Monica photos) or "mix". */
+    var background: String
+        get() = sp.getString("background", null) ?: if (sp.getBoolean("bg_santa_monica", true)) "live" else "mix"
+        set(v) = sp.edit().putString("background", v).apply()
+
+    /** Santa Monica photos are used for both "live" (as the fallback) and "photos". */
+    val santaMonica: Boolean get() = background != "mix"
+
+    /** YouTube live streams for the camera, tried in order (links or ids, space-separated). */
+    var liveCams: String
+        get() = sp.getString("live_cams", null)?.takeIf { it.isNotBlank() } ?: DEFAULT_CAMS
+        set(v) = sp.edit().putString("live_cams", v.trim()).apply()
 
     /** Package chosen for home tile [index] by long-press, or null for the default. */
     fun slotPackage(index: Int): String? = sp.getString("slot$index", null)
@@ -121,6 +129,9 @@ class Prefs(context: Context) {
     val weatherKey: String get() = "$latitude,$longitude,$fahrenheit"
 
     companion object {
+        /** Pacific Park's official 4K pier stream, then a beach-and-pier cam. */
+        const val DEFAULT_CAMS = "DckQwhIzMdA v97JpT3ZA0w"
+
         const val DEFAULT_RSS =
             "https://feeds.content.dowjones.io/public/rss/RSSWorldNews https://variety.com/feed/"
     }

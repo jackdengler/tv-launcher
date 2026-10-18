@@ -40,7 +40,7 @@ object Updater {
         private set
 
     private const val API = "https://api.github.com/repos/${BuildConfig.REPO}/releases/latest"
-    private const val APK = "https://github.com/${BuildConfig.REPO}/releases/latest/download/quiet.apk"
+    private const val APK = "https://github.com/${BuildConfig.REPO}/releases/latest/download/${BuildConfig.APK_NAME}"
     private val BUILD = Regex("""build (\d+)""")
 
     /** Checks at most once per [MIN_CHECK_MS] unless [force]. */

@@ -8,6 +8,7 @@ import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
 import android.view.accessibility.AccessibilityEvent
+import com.jackdengler.quiet.BuildConfig
 import com.jackdengler.quiet.MainActivity
 import com.jackdengler.quiet.QuietApp
 import com.jackdengler.quiet.data.Espn
@@ -66,14 +67,15 @@ class QuietAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = event.packageName?.toString() ?: return
-        if (pkg in stockLaunchers) bringQuietForward()
+        // Only the launcher app takes over the Home button; Quiet Scores just draws the overlay.
+        if (BuildConfig.LAUNCHER && pkg in stockLaunchers) bringQuietForward()
         // Ignore transient system windows (IME, system UI) when tracking what's in front.
         if (pkg == "com.android.systemui" || pkg.contains("inputmethod")) return
         // Our own events only count when they come from one of Quiet's activities. The overlay
         // window and toasts belong to this package too, and showing the overlay must not make
         // the service think Quiet is in front (that hid it again right after it appeared).
         if (pkg == packageName && event.className?.toString()?.startsWith("$packageName.") != true) return
-        val inFront = pkg == packageName || pkg in stockLaunchers
+        val inFront = pkg == packageName || (BuildConfig.LAUNCHER && pkg in stockLaunchers)
         if (inFront != quietInFront) {
             quietInFront = inFront
             if (inFront) overlay?.hide() else (application as? QuietApp)?.prefs?.let(::restartOverlay)

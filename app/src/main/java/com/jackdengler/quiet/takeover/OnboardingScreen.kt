@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.tv.material3.Text
+import com.jackdengler.quiet.BuildConfig
 import com.jackdengler.quiet.settings.SettingRow
 import com.jackdengler.quiet.ui.LocalAccent
 import com.jackdengler.quiet.ui.QuietFonts
@@ -58,18 +59,23 @@ fun OnboardingScreen(onDone: () -> Unit) {
     Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.8f)), contentAlignment = Alignment.CenterStart) {
         Column(Modifier.padding(start = 160.dp).width(1100.dp)) {
             Text(
-                "Make the Home button open Quiet",
+                if (BuildConfig.LAUNCHER) "Make the Home button open Quiet" else "Turn on the fantasy overlay",
                 style = TextStyle(fontFamily = QuietFonts.InstrumentSerif, fontStyle = FontStyle.Italic, fontSize = 52.sp, color = Color.White),
             )
             Spacer(Modifier.height(14.dp))
             Text(
-                if (enabled) "All set. Home now opens Quiet." else "Google TV won't let you choose a home app without a computer. Quiet works around this with an accessibility service that only watches which app is in front.",
+                when {
+                    enabled && BuildConfig.LAUNCHER -> "All set. Home now opens Quiet."
+                    enabled -> "All set. Scores appear over whatever you're watching."
+                    BuildConfig.LAUNCHER -> "Google TV won't let you choose a home app without a computer. Quiet works around this with an accessibility service that only watches which app is in front."
+                    else -> "The scorebug is drawn by an accessibility service, which lets it float over any app. It only watches which app is in front, never what's on screen."
+                },
                 style = body.copy(color = if (enabled) accent else body.color),
             )
             Spacer(Modifier.height(30.dp))
             if (!enabled) {
                 Step(1, "Choose “Open Accessibility settings” below.", body)
-                Step(2, "Find “Quiet Home” in the list (under Services on some TVs) and open it.", body)
+                Step(2, "Find “${if (BuildConfig.LAUNCHER) "Quiet Home" else "Quiet Scores overlay"}” in the list (under Services on some TVs) and open it.", body)
                 Step(3, "Turn it on and confirm. Then press Back to return here.", body)
                 Spacer(Modifier.height(10.dp))
                 Text(

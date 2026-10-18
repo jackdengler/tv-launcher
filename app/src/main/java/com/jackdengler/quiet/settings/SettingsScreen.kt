@@ -82,7 +82,14 @@ private data class Editor(
 )
 
 @Composable
-fun SettingsScreen(prefs: Prefs, onBack: () -> Unit, onHomeSetup: () -> Unit) {
+fun SettingsScreen(
+    prefs: Prefs,
+    onBack: () -> Unit,
+    onHomeSetup: () -> Unit,
+    /** Quiet Scores: only the fantasy overlay's settings. */
+    scoresOnly: Boolean = false,
+    onFantasy: () -> Unit = {},
+) {
     var editor by remember { mutableStateOf<Editor?>(null) }
     var locating by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -99,11 +106,11 @@ fun SettingsScreen(prefs: Prefs, onBack: () -> Unit, onHomeSetup: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.7f)).padding(start = 140.dp, end = 140.dp, top = 56.dp)) {
-        Title("Quiet settings")
+        Title(if (scoresOnly) "Quiet Scores" else "Quiet settings")
         Spacer(Modifier.height(20.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 80.dp)) {
             item { Section("Quiet") }
-            item { UpdateRow() }
+            item { UpdateRow(Modifier.focusRequester(first)) }
             item {
                 val context = androidx.compose.ui.platform.LocalContext.current
                 SettingRow("Reinstall Quiet", "Fixes an accessibility switch that won't stay on") {
@@ -114,55 +121,59 @@ fun SettingsScreen(prefs: Prefs, onBack: () -> Unit, onHomeSetup: () -> Unit) {
                 val crash = prefs.cached(com.jackdengler.quiet.QuietApp.LAST_CRASH)?.takeIf { it.isNotBlank() }
                 if (crash != null) SettingRow("Last error", crash) { prefs.putCached(com.jackdengler.quiet.QuietApp.LAST_CRASH, "") }
             }
-            item { Section("Home screen") }
-            item {
-                val context = androidx.compose.ui.platform.LocalContext.current
-                SettingRow("Background", BACKGROUND_LABELS[prefs.background] ?: "Live camera") {
-                    val keys = BACKGROUND_LABELS.keys.toList()
-                    prefs.background = keys[(keys.indexOf(prefs.background) + 1) % keys.size]
-                    com.jackdengler.quiet.photos.PhotoSyncWorker.syncNow(context)
-                }
-            }
-            item {
-                SettingRow("Live camera", prefs.liveCams) {
-                    editor = Editor(
-                        "Live camera",
-                        "YouTube live links or video ids, separated by spaces; the first that plays is used. Leave empty for the Santa Monica Pier cams.",
-                        prefs.liveCams, KeyboardType.Uri,
-                    ) { prefs.liveCams = it }
-                }
-            }
-            item {
-                // Updated by the background sync; re-read every few seconds.
-                var tick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
-                LaunchedEffect(Unit) {
-                    while (true) {
-                        kotlinx.coroutines.delay(3_000)
-                        tick++
+            if (scoresOnly) {
+                item { SettingRow("Overlay service", "Turn on the accessibility service that draws the scorebug", onClick = onHomeSetup) }
+                item { SettingRow("Full scores", "Both leagues with every starter", onClick = onFantasy) }
+            } else {
+                item { Section("Home screen") }
+                item {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    SettingRow("Background", BACKGROUND_LABELS[prefs.background] ?: "Live camera") {
+                        val keys = BACKGROUND_LABELS.keys.toList()
+                        prefs.background = keys[(keys.indexOf(prefs.background) + 1) % keys.size]
+                        com.jackdengler.quiet.photos.PhotoSyncWorker.syncNow(context)
                     }
                 }
-                tick
-                val context = androidx.compose.ui.platform.LocalContext.current
-                SettingRow(
-                    "Photos status",
-                    prefs.cached(com.jackdengler.quiet.photos.PhotoSyncWorker.STATUS) ?: "Not synced yet. Select to sync now",
-                ) { com.jackdengler.quiet.photos.PhotoSyncWorker.syncNow(context) }
-            }
-            item {
-                SettingRow("Weather location", prefs.placeName, Modifier.focusRequester(first)) { locating = true }
-            }
-            item {
-                SettingRow("Temperature", if (prefs.fahrenheit) "°F" else "°C") { prefs.fahrenheit = !prefs.fahrenheit }
-            }
-            item {
-                SettingRow("Headline feeds", "${prefs.feeds.size} feed(s): " + prefs.feeds.joinToString(", ") { it.substringAfter("//").substringBefore("/") }) {
-                    editor = Editor("Headline feeds", "One or more RSS/Atom URLs separated by spaces. Leave empty for WSJ + Variety.", prefs.rssUrl, KeyboardType.Uri) {
-                        prefs.rssUrl = it
+                item {
+                    SettingRow("Live camera", prefs.liveCams) {
+                        editor = Editor(
+                            "Live camera",
+                            "YouTube live links or video ids, separated by spaces; the first that plays is used. Leave empty for the Santa Monica Pier cams.",
+                            prefs.liveCams, KeyboardType.Uri,
+                        ) { prefs.liveCams = it }
                     }
                 }
+                item {
+                    // Updated by the background sync; re-read every few seconds.
+                    var tick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+                    LaunchedEffect(Unit) {
+                        while (true) {
+                            kotlinx.coroutines.delay(3_000)
+                            tick++
+                        }
+                    }
+                    tick
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    SettingRow(
+                        "Photos status",
+                        prefs.cached(com.jackdengler.quiet.photos.PhotoSyncWorker.STATUS) ?: "Not synced yet. Select to sync now",
+                    ) { com.jackdengler.quiet.photos.PhotoSyncWorker.syncNow(context) }
+                }
+                item {
+                    SettingRow("Weather location", prefs.placeName) { locating = true }
+                }
+                item {
+                    SettingRow("Temperature", if (prefs.fahrenheit) "°F" else "°C") { prefs.fahrenheit = !prefs.fahrenheit }
+                }
+                item {
+                    SettingRow("Headline feeds", "${prefs.feeds.size} feed(s): " + prefs.feeds.joinToString(", ") { it.substringAfter("//").substringBefore("/") }) {
+                        editor = Editor("Headline feeds", "One or more RSS/Atom URLs separated by spaces. Leave empty for WSJ + Variety.", prefs.rssUrl, KeyboardType.Uri) {
+                            prefs.rssUrl = it
+                        }
+                    }
+                }
+                item { SettingRow("Home button", "Set up the Home button takeover", onClick = onHomeSetup) }
             }
-            item { SettingRow("Home button", "Set up the Home button takeover", onClick = onHomeSetup) }
-
             item { Section("ESPN fantasy overlay") }
             item {
                 SettingRow("Overlay", if (prefs.espnEnabled) "On" else "Off") { prefs.espnEnabled = !prefs.espnEnabled }

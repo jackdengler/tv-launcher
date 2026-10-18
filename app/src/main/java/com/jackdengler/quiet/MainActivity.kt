@@ -10,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -77,6 +78,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val app = application as QuietApp
+        if (!BuildConfig.LAUNCHER) {
+            setContent { DesignPixels { ScoresRoot(app) { finish() } } }
+            return
+        }
         setContent {
             DesignPixels {
                 QuietRoot(app, screen, homeSignal, idle, ::idleWatch, pickSlot, { pickSlot = it }) { screen = it }
@@ -126,6 +131,33 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val IDLE_MS = 3 * 60_000L
+    }
+}
+
+/** Quiet Scores: settings for the fantasy overlay, its setup screen, and the full scores view. */
+@Composable
+private fun ScoresRoot(app: QuietApp, close: () -> Unit) {
+    var screen by remember {
+        mutableStateOf(if (QuietAccessibilityService.isEnabled(app)) Screen.Settings else Screen.Onboarding)
+    }
+    Box(
+        Modifier.fillMaxSize().background(
+            androidx.compose.ui.graphics.Brush.linearGradient(
+                listOf(androidx.compose.ui.graphics.Color(0xFF1B2330), androidx.compose.ui.graphics.Color(0xFF0B0E13)),
+            ),
+        ),
+    ) {
+        when (screen) {
+            Screen.Onboarding -> OnboardingScreen { screen = Screen.Settings }
+            Screen.Fantasy -> FantasyPanel(app.prefs) { screen = Screen.Settings }
+            else -> SettingsScreen(
+                app.prefs,
+                onBack = close,
+                onHomeSetup = { screen = Screen.Onboarding },
+                scoresOnly = true,
+                onFantasy = { screen = Screen.Fantasy },
+            )
+        }
     }
 }
 

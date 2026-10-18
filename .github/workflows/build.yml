@@ -24,16 +24,20 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build signed release APK
-        run: ./gradlew --no-daemon :app:assembleRelease -PversionCode=${{ github.run_number }}
+      - name: Build signed release APKs (Quiet and Quiet Scores)
+        run: ./gradlew --no-daemon :app:assembleLauncherRelease :app:assembleScoresRelease -PversionCode=${{ github.run_number }}
 
-      - name: Collect APK
-        run: cp app/build/outputs/apk/release/app-release.apk quiet.apk
+      - name: Collect APKs
+        run: |
+          cp app/build/outputs/apk/launcher/release/app-launcher-release.apk quiet.apk
+          cp app/build/outputs/apk/scores/release/app-scores-release.apk quiet-scores.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: quiet-apk
-          path: quiet.apk
+          name: quiet-apks
+          path: |
+            quiet.apk
+            quiet-scores.apk
 
       - name: Publish release "latest"
         if: github.ref == 'refs/heads/main'
@@ -46,8 +50,8 @@ jobs:
           git push -f origin refs/tags/latest
           notes="Build ${{ github.run_number }} from ${GITHUB_SHA::7}"
           if gh release view latest >/dev/null 2>&1; then
-            gh release upload latest quiet.apk --clobber
+            gh release upload latest quiet.apk quiet-scores.apk --clobber
             gh release edit latest --title "Quiet (build ${{ github.run_number }})" --notes "$notes" --latest
           else
-            gh release create latest quiet.apk --title "Quiet (build ${{ github.run_number }})" --notes "$notes" --latest
+            gh release create latest quiet.apk quiet-scores.apk --title "Quiet (build ${{ github.run_number }})" --notes "$notes" --latest
           fi

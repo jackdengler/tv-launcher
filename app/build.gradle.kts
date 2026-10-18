@@ -20,6 +20,27 @@ android {
         buildConfigField("String", "REPO", "\"$repo\"")
     }
 
+    // Two apps from one codebase: the full launcher, and "Quiet Scores", which is only the
+    // fantasy overlay (no home screen, no Home-button takeover).
+    flavorDimensions += "app"
+    productFlavors {
+        create("launcher") {
+            dimension = "app"
+            buildConfigField("boolean", "LAUNCHER", "true")
+            buildConfigField("String", "APK_NAME", "\"quiet.apk\"")
+            resValue("string", "app_name", "Quiet")
+            resValue("string", "a11y_label", "Quiet Home")
+        }
+        create("scores") {
+            dimension = "app"
+            applicationIdSuffix = ".scores"
+            buildConfigField("boolean", "LAUNCHER", "false")
+            buildConfigField("String", "APK_NAME", "\"quiet-scores.apk\"")
+            resValue("string", "app_name", "Quiet Scores")
+            resValue("string", "a11y_label", "Quiet Scores overlay")
+        }
+    }
+
     signingConfigs {
         // Committed on purpose: the repo is public and the key only guarantees
         // that every build carries the same signature so updates install in place.

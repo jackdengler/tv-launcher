@@ -62,7 +62,8 @@ class Prefs(context: Context) {
 
     // ESPN fantasy overlay
     var espnEnabled: Boolean
-        get() = sp.getBoolean("espn_on", false)
+        // On by default in Quiet Scores, whose whole job is the overlay.
+        get() = sp.getBoolean("espn_on", !com.jackdengler.quiet.BuildConfig.LAUNCHER)
         set(v) = sp.edit().putBoolean("espn_on", v).apply()
     var espnAlways: Boolean
         get() = sp.getBoolean("espn_always", false)

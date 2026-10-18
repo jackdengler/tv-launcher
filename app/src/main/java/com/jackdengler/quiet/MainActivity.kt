@@ -77,7 +77,7 @@ class MainActivity : ComponentActivity() {
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         lastInput = SystemClock.uptimeMillis()
         if (idle) {
-            if (event.action == KeyEvent.ACTION_UP) setIdle(false)
+            if (event.action == KeyEvent.ACTION_UP) updateIdle(false)
             return true
         }
         return super.dispatchKeyEvent(event)
@@ -87,12 +87,12 @@ class MainActivity : ComponentActivity() {
     private suspend fun idleWatch() {
         while (true) {
             val wait = lastInput + IDLE_MS - SystemClock.uptimeMillis()
-            if (wait <= 0 && screen == Screen.Home && !idle) setIdle(true)
+            if (wait <= 0 && screen == Screen.Home && !idle) updateIdle(true)
             delay(if (wait > 0) wait else IDLE_MS)
         }
     }
 
-    private fun setIdle(value: Boolean) {
+    private fun updateIdle(value: Boolean) {
         idle = value
         // Keep the panel (and Google TV's screensaver) off while idle shows the photo.
         if (value) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -101,14 +101,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
-        if (idle) setIdle(false)
+        if (idle) updateIdle(false)
     }
 
     /** Home pressed while Quiet is already in front: back to the tile grid. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         lastInput = SystemClock.uptimeMillis()
-        setIdle(false)
+        updateIdle(false)
         screen = Screen.Home
         homeSignal++
     }

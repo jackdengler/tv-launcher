@@ -20,10 +20,6 @@ object QuietFonts {
         Font(R.font.manrope_regular, FontWeight.Normal),
         Font(R.font.manrope_semibold, FontWeight.SemiBold),
     )
-    /** Hand-lettered faces the painter uses: brush capitals for the clock, script for headlines. */
-    val CaveatBrush = FontFamily(Font(R.font.caveat_brush, FontWeight.Normal))
-    val Caveat = FontFamily(Font(R.font.caveat_semibold, FontWeight.SemiBold))
-
     val InstrumentSerif = FontFamily(
         Font(R.font.instrument_serif_italic, FontWeight.Normal, FontStyle.Italic),
     )

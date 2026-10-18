@@ -86,9 +86,9 @@ class Prefs(context: Context) {
         get() = sp.getString("espn_style", "bug") ?: "bug"
         set(v) = sp.edit().putString("espn_style", v).apply()
 
-    /** Overlay corner: top-left (default, clear of network logos), top-right, bottom-left, bottom-right. */
+    /** Overlay corner: top-right (default), top-left, bottom-left, bottom-right. */
     var espnCorner: String
-        get() = sp.getString("espn_corner", "top-left") ?: "top-left"
+        get() = sp.getString("espn_corner", "top-right") ?: "top-right"
         set(v) = sp.edit().putString("espn_corner", v).apply()
 
     /** Configured leagues as (number, leagueId, teamId), whether shown or not. */

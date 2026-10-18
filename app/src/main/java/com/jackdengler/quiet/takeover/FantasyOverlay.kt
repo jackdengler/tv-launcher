@@ -50,10 +50,10 @@ class FantasyOverlay(private val context: Context) {
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = when (corner) {
-                "top-right" -> Gravity.TOP or Gravity.END
+                "top-left" -> Gravity.TOP or Gravity.START
                 "bottom-left" -> Gravity.BOTTOM or Gravity.START
                 "bottom-right" -> Gravity.BOTTOM or Gravity.END
-                else -> Gravity.TOP or Gravity.START
+                else -> Gravity.TOP or Gravity.END
             }
             x = inset
             y = inset

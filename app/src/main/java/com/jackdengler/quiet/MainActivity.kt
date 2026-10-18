@@ -52,9 +52,6 @@ import com.jackdengler.quiet.data.Prefs
 import com.jackdengler.quiet.settings.SettingsScreen
 import com.jackdengler.quiet.ui.DesignPixels
 import com.jackdengler.quiet.ui.LocalAccent
-import com.jackdengler.quiet.painter.LocalPainter
-import com.jackdengler.quiet.painter.PainterOverlay
-import com.jackdengler.quiet.painter.PainterState
 import com.jackdengler.quiet.update.Updater
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
@@ -149,19 +146,6 @@ private fun QuietRoot(
     val accent = animateColorAsState(backdrop.accent, tween(1500), label = "accent")
     val ambient = remember { Ambient(app.prefs) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val painter = remember { PainterState() }
-    // The painter works only while the home screen is in front; otherwise text just switches.
-    LaunchedEffect(painter, screen) {
-        if (screen != Screen.Home) return@LaunchedEffect
-        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            painter.active = true
-            try {
-                painter.run()
-            } finally {
-                painter.active = false
-            }
-        }
-    }
     val settingsVersion by app.prefs.changes.collectAsState()
     LaunchedEffect(settingsVersion) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { ambient.run() }
@@ -188,7 +172,7 @@ private fun QuietRoot(
         snapshotFlow { night.value }.collect { backdrop.filter = nightFilter(it) }
     }
 
-    CompositionLocalProvider(LocalAccent provides accent, LocalPainter provides painter) {
+    CompositionLocalProvider(LocalAccent provides accent) {
         Box(Modifier.fillMaxSize()) {
             Backdrop(
                 backdrop,
@@ -257,7 +241,6 @@ private fun QuietRoot(
                     onHomeSetup = { navigate(Screen.Onboarding) },
                 )
             }
-            if (screen == Screen.Home) PainterOverlay(painter) { accent.value }
         }
     }
 }

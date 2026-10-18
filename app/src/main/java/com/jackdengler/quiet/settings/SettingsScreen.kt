@@ -63,7 +63,7 @@ import kotlinx.coroutines.withContext
 
 private val STYLE_LABELS = linkedMapOf("bug" to "Scorebug", "card" to "Card with win chart", "full" to "Full rosters")
 private val CORNER_LABELS = linkedMapOf(
-    "top-left" to "Top left", "top-right" to "Top right", "bottom-left" to "Bottom left", "bottom-right" to "Bottom right",
+    "top-right" to "Top right", "top-left" to "Top left", "bottom-left" to "Bottom left", "bottom-right" to "Bottom right",
 )
 
 /** A text value being edited in the full-screen editor. */
@@ -166,7 +166,7 @@ fun SettingsScreen(prefs: Prefs, onBack: () -> Unit, onHomeSetup: () -> Unit) {
                 }
             }
             item {
-                SettingRow("Corner", CORNER_LABELS[prefs.espnCorner] ?: "Top left") {
+                SettingRow("Corner", CORNER_LABELS[prefs.espnCorner] ?: "Top right") {
                     prefs.espnCorner = CORNER_LABELS.keys.let { keys -> keys.elementAt((keys.indexOf(prefs.espnCorner) + 1) % keys.size) }
                 }
             }

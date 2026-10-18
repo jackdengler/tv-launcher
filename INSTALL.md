@@ -87,7 +87,7 @@ Open **All apps** and choose **Quiet settings**, the first tile:
    - **League 1 / League 2:** select either one to switch it between Shown and Hidden.
    - **Look:** Scorebug (logos, scores and a win-chance pennant), Card (adds the win
      chart), or Full rosters (every starter).
-   - **Corner:** where it sits. Top left keeps it clear of network logos.
+   - **Corner:** where it sits (top right by default).
 4. For both leagues in full detail inside Quiet, open **All apps → Fantasy**.
 
 The overlay needs the Home button service from step 3 to be on. Broadcaster logos (FOX, CBS)

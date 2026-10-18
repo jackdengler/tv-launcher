@@ -73,7 +73,8 @@ fun OnboardingScreen(onDone: () -> Unit) {
                 Step(3, "Turn it on and confirm. Then press Back to return here.", body)
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    "If the switch is greyed out, open Settings → Apps → Quiet and choose “Allow restricted settings”, then try again.",
+                    "If the switch snaps back to off: open Settings → Apps → See all apps → Quiet, choose “Allow restricted settings”, then try again. " +
+                        "No such option? Use Quiet settings → Reinstall Quiet, then try again.",
                     style = body.copy(fontSize = 19.sp, color = Color.White.copy(alpha = 0.6f)),
                 )
                 Spacer(Modifier.height(30.dp))

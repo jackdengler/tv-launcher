@@ -80,6 +80,7 @@ private data class Editor(
 fun SettingsScreen(prefs: Prefs, onBack: () -> Unit, onHomeSetup: () -> Unit) {
     var editor by remember { mutableStateOf<Editor?>(null) }
     var locating by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     BackHandler(enabled = editor == null && !locating, onBack = onBack)
     // Re-read prefs whenever they change.
     prefs.changes.collectAsState().value
@@ -98,6 +99,16 @@ fun SettingsScreen(prefs: Prefs, onBack: () -> Unit, onHomeSetup: () -> Unit) {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 80.dp)) {
             item { Section("Quiet") }
             item { UpdateRow() }
+            item {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                SettingRow("Reinstall Quiet", "Fixes an accessibility switch that won't stay on") {
+                    scope.launch { Updater.install(context) }
+                }
+            }
+            item {
+                val crash = prefs.cached(com.jackdengler.quiet.QuietApp.LAST_CRASH)?.takeIf { it.isNotBlank() }
+                if (crash != null) SettingRow("Last error", crash) { prefs.putCached(com.jackdengler.quiet.QuietApp.LAST_CRASH, "") }
+            }
             item { Section("Home screen") }
             item {
                 val context = androidx.compose.ui.platform.LocalContext.current

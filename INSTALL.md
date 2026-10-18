@@ -79,14 +79,19 @@ Open **All apps** and choose **Quiet settings**, the first tile:
 
 ### ESPN fantasy overlay
 
-1. In Quiet settings, set **League ID** and **Team ID**. To find them, open your league on
-   fantasy.espn.com in Safari. The address contains `leagueId=…` and, on your team page,
-   `teamId=…`.
-2. **Private leagues only:** choose **Sign in to ESPN** and log in on the TV (type with your
-   phone's remote keyboard). Quiet saves the access cookies itself and the page closes.
-3. Turn **Overlay** on. The score appears top-right over whatever you're watching during NFL
-   game windows (Thu/Mon from 7 pm, Sun from noon), or all the time if **When to show** is set to
-   Always. It needs the Home button service from step 3 to be on.
+1. In **Quiet settings → ESPN fantasy overlay**, set **League 1 ID** and **League 1 team ID**
+   (and League 2 if you have one). To find them, open the league on fantasy.espn.com in
+   Safari: the address has `leagueId=…`, and your team page has `teamId=…`.
+2. **Private leagues:** choose **Sign in to ESPN** once and log in on the TV.
+3. Turn **Overlay** on. Then pick:
+   - **League 1 / League 2:** select either one to switch it between Shown and Hidden.
+   - **Look:** Scorebug (logos, scores and a win-chance pennant), Card (adds the win
+     chart), or Full rosters (every starter).
+   - **Corner:** where it sits. Top left keeps it clear of network logos.
+4. For both leagues in full detail inside Quiet, open **All apps → Fantasy**.
+
+The overlay needs the Home button service from step 3 to be on. Broadcaster logos (FOX, CBS)
+are part of the picture and can't be removed; use **Corner** to stay out of their way.
 
 ## 6. Adding your own photos
 

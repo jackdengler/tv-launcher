@@ -88,6 +88,12 @@ The workflow publishes `quiet.apk` to the `latest` release, so every green phase
 - [x] Painter on a rope scrubs out changed digits / old headline and brush-paints the new text (zigzag strokes, drips)
 - [x] Push → CI green
 
+## Phase 13 — Fixes from first look on the TV
+- [x] Painter → realistic shaded brush tracing real glyph outlines, slower
+- [x] Santa Monica: Wikimedia Commons source, brightness retagging, playlist refresh, Photos status
+- [x] Fantasy v2: scorebug + win pennant, win chart, full rosters, two leagues, corner setting
+- [x] Push → CI green
+
 ## Review
 
 **Status:** all 7 phases (0–6) compile and publish in CI. The release asset is at

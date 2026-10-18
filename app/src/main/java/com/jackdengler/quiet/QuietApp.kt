@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.work.Configuration
 import com.jackdengler.quiet.apps.AppRepository
+import com.jackdengler.quiet.data.Prefs
 import com.jackdengler.quiet.photos.PhotoRepository
 
 /**
@@ -13,6 +14,7 @@ import com.jackdengler.quiet.photos.PhotoRepository
 class QuietApp : Application(), Configuration.Provider {
     val apps by lazy { AppRepository(this) }
     val photos by lazy { PhotoRepository(this) }
+    val prefs by lazy { Prefs(this) }
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setMinimumLoggingLevel(Log.ERROR).build()

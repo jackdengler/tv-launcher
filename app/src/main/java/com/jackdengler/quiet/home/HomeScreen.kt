@@ -1,7 +1,16 @@
 package com.jackdengler.quiet.home
 
 import android.text.format.DateFormat
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.text.style.TextOverflow
+import com.jackdengler.quiet.data.Ambient
+import com.jackdengler.quiet.data.Headline
+import com.jackdengler.quiet.data.Weather
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -59,6 +68,7 @@ fun HomeScreen(
     apps: AppRepository,
     focusSignal: Int,
     onAllApps: () -> Unit,
+    ambient: Ambient,
     onLongPressSlot: (Int) -> Unit = {},
     slots: List<Slot> = DefaultSlots,
 ) {
@@ -66,7 +76,9 @@ fun HomeScreen(
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.padding(start = 96.dp, top = 56.dp)) {
             Clock(now)
-            DateLine(now)
+            DateLine(now) { WeatherInline(ambient.weather, night = false) }
+            Spacer(Modifier.height(26.dp))
+            HeadlinePill(backdrop, ambient.headline)
         }
         PhotoDots(backdrop, Modifier.align(Alignment.TopEnd).padding(top = 84.dp, end = 96.dp))
         TileGrid(
@@ -125,6 +137,69 @@ fun DateLine(now: Long, size: Int = 34, alpha: Float = 0.9f, trailing: @Composab
             ),
         )
         trailing()
+    }
+}
+
+@Composable
+fun WeatherInline(weather: Weather?, night: Boolean, size: Int = 30) {
+    weather ?: return
+    val accent by LocalAccent.current
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Spacer(Modifier.width((size * 0.8f).dp))
+        Image(
+            painterResource(weather.icon(night)),
+            contentDescription = null,
+            modifier = Modifier.size((size * 0.95f).dp),
+            colorFilter = ColorFilter.tint(accent),
+        )
+        Spacer(Modifier.width((size * 0.35f).dp))
+        Text(
+            if (weather.label.isEmpty()) "${weather.temp}°" else "${weather.temp}° · ${weather.label}",
+            style = TextStyle(
+                fontFamily = QuietFonts.Manrope,
+                fontWeight = FontWeight.Normal,
+                fontSize = (size * 0.85f).sp,
+                fontFeatureSettings = "tnum",
+                color = accent,
+                shadow = TextShadow,
+            ),
+        )
+    }
+}
+
+/** One headline in a small frosted pill with the feed's name as a tag; crossfades on change. */
+@Composable
+fun HeadlinePill(backdrop: BackdropState, headline: Headline?, maxWidth: Int = 980, scale: Float = 1f) {
+    val accent by LocalAccent.current
+    Crossfade(headline, animationSpec = tween(700), label = "headline") { h ->
+        if (h == null) return@Crossfade
+        Row(
+            Modifier
+                .widthIn(max = maxWidth.dp)
+                .frost(backdrop, CircleShape, Color.Black.copy(alpha = 0.22f))
+                .border(1.dp, Color.White.copy(alpha = 0.14f), CircleShape)
+                .padding(horizontal = (20 * scale).dp, vertical = (10 * scale).dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                h.source.uppercase(),
+                maxLines = 1,
+                style = TextStyle(
+                    fontFamily = QuietFonts.Manrope, fontWeight = FontWeight.SemiBold,
+                    fontSize = (14 * scale).sp, letterSpacing = (1.6 * scale).sp, color = accent,
+                ),
+            )
+            Spacer(Modifier.width((14 * scale).dp))
+            Text(
+                h.title,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = TextStyle(
+                    fontFamily = QuietFonts.Manrope, fontWeight = FontWeight.Normal,
+                    fontSize = (20 * scale).sp, color = Color.White.copy(alpha = 0.92f),
+                ),
+            )
+        }
     }
 }
 

@@ -143,3 +143,18 @@ private fun rememberGlow(): ImageBitmap {
         bmp.asImageBitmap()
     }
 }
+
+/**
+ * Frosted-glass background for any element: the pre-blurred photo cropped to this element's
+ * screen position, clipped to [shape], plus a [veil] tint.
+ */
+fun Modifier.frost(backdrop: BackdropState, shape: androidx.compose.ui.graphics.Shape, veil: Color): Modifier =
+    androidx.compose.ui.composed {
+        val origin = remember { FloatArray(2) }
+        onGloballyPositioned { val p = it.positionInRoot(); origin[0] = p.x; origin[1] = p.y }
+            .clip(shape)
+            .drawBehind {
+                with(backdrop) { drawPhotos(Offset(origin[0], origin[1]), frost = true) }
+                drawRect(veil)
+            }
+    }

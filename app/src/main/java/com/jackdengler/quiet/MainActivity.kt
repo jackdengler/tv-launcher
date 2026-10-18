@@ -20,7 +20,10 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.compose.runtime.collectAsState
 import com.jackdengler.quiet.apps.AllAppsScreen
+import com.jackdengler.quiet.data.Ambient
+import com.jackdengler.quiet.settings.SettingsScreen
 import com.jackdengler.quiet.home.Backdrop
 import com.jackdengler.quiet.home.BackdropState
 import com.jackdengler.quiet.home.HomeScreen
@@ -34,7 +37,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
-enum class Screen { Home, AllApps }
+enum class Screen { Home, AllApps, Settings }
 
 class MainActivity : ComponentActivity() {
     private var screen by mutableStateOf(Screen.Home)
@@ -62,6 +65,12 @@ class MainActivity : ComponentActivity() {
 private fun QuietRoot(app: QuietApp, screen: Screen, homeSignal: Int, navigate: (Screen) -> Unit) {
     val backdrop = remember { BackdropState() }
     val accent = animateColorAsState(backdrop.accent, tween(1500), label = "accent")
+    val ambient = remember { Ambient(app.prefs) }
+    val settingsVersion by app.prefs.changes.collectAsState()
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(settingsVersion) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { ambient.run() }
+    }
     PhotoRotation(backdrop, app.photos)
     LaunchedEffect(Unit) {
         // Network work is scheduled well after the first frame, never on the startup path.
@@ -76,8 +85,18 @@ private fun QuietRoot(app: QuietApp, screen: Screen, homeSignal: Int, navigate: 
                 Screen.Home -> HomeScreen(
                     backdrop, app.apps, homeSignal,
                     onAllApps = { navigate(Screen.AllApps) },
+                    ambient = ambient,
                 )
-                Screen.AllApps -> AllAppsScreen(app.apps, onBack = { navigate(Screen.Home) })
+                Screen.AllApps -> AllAppsScreen(
+                    app.apps,
+                    onBack = { navigate(Screen.Home) },
+                    extras = listOf("Quiet settings" to { navigate(Screen.Settings) }),
+                )
+                Screen.Settings -> SettingsScreen(
+                    app.prefs,
+                    onBack = { navigate(Screen.AllApps) },
+                    onHomeSetup = { },
+                )
             }
         }
     }

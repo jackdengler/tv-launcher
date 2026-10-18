@@ -25,6 +25,7 @@ import com.jackdengler.quiet.home.Backdrop
 import com.jackdengler.quiet.home.BackdropState
 import com.jackdengler.quiet.home.HomeScreen
 import com.jackdengler.quiet.photos.PhotoRepository
+import com.jackdengler.quiet.photos.PhotoSyncWorker
 import com.jackdengler.quiet.photos.Playlist
 import com.jackdengler.quiet.ui.DesignPixels
 import com.jackdengler.quiet.ui.LocalAccent
@@ -62,6 +63,11 @@ private fun QuietRoot(app: QuietApp, screen: Screen, homeSignal: Int, navigate: 
     val backdrop = remember { BackdropState() }
     val accent = animateColorAsState(backdrop.accent, tween(1500), label = "accent")
     PhotoRotation(backdrop, app.photos)
+    LaunchedEffect(Unit) {
+        // Network work is scheduled well after the first frame, never on the startup path.
+        delay(BACKGROUND_START_DELAY_MS)
+        withContext(Dispatchers.IO) { PhotoSyncWorker.schedule(app) }
+    }
 
     CompositionLocalProvider(LocalAccent provides accent) {
         Box(Modifier.fillMaxSize()) {
@@ -78,6 +84,7 @@ private fun QuietRoot(app: QuietApp, screen: Screen, homeSignal: Int, navigate: 
 }
 
 private const val ROTATE_MS = 60_000L
+private const val BACKGROUND_START_DELAY_MS = 8_000L
 
 /** Advances the photo every 60 s while Quiet is visible; stops entirely when it is not. */
 @Composable

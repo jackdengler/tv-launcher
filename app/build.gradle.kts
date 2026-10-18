@@ -15,6 +15,9 @@ android {
         // CI passes the run number so every build installs over the previous one.
         versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
         versionName = "1.0.${versionCode}"
+        // photos.json is read from this repo's main branch.
+        val repo = System.getenv("GITHUB_REPOSITORY") ?: "jackdengler/tv-launcher"
+        buildConfigField("String", "REPO", "\"$repo\"")
     }
 
     signingConfigs {

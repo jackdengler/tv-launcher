@@ -1,26 +1,41 @@
 package com.jackdengler.quiet.photos
 
 import android.content.Context
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
-/**
- * Downloaded photos on disk (filesDir/photos), plus an index of their tags.
- * Phase 2 fills this; until then it is empty.
- */
+/** Downloaded photos on disk (filesDir/photos), plus an index of their tags. */
 class PhotoCache(context: Context) {
     val dir = File(context.filesDir, "photos")
     private val index = File(dir, "index.json")
 
-    fun entries(): List<PhotoSource> {
+    data class Entry(val file: String, val url: String, val tags: Set<String>)
+
+    fun entries(): List<PhotoSource> = read().mapNotNull { e ->
+        File(dir, e.file).takeIf { it.exists() }?.let { PhotoSource.Cached(it, e.tags) }
+    }
+
+    fun read(): List<Entry> {
         if (!index.exists()) return emptyList()
         return runCatching {
             val arr = JSONObject(index.readText()).getJSONArray("photos")
-            (0 until arr.length()).mapNotNull { i ->
+            List(arr.length()) { i ->
                 val o = arr.getJSONObject(i)
-                val file = File(dir, o.getString("file"))
-                if (file.exists()) PhotoSource.Cached(file, o.optJSONArray("tags").toStringSet()) else null
+                Entry(o.getString("file"), o.optString("url"), o.optJSONArray("tags").toStringSet())
             }
         }.getOrDefault(emptyList())
+    }
+
+    /** Atomically replaces the index (write to a temp file, then rename). */
+    fun write(entries: List<Entry>) {
+        dir.mkdirs()
+        val arr = JSONArray()
+        for (e in entries) {
+            arr.put(JSONObject().put("file", e.file).put("url", e.url).put("tags", JSONArray(e.tags.toList())))
+        }
+        val tmp = File(dir, "index.json.tmp")
+        tmp.writeText(JSONObject().put("photos", arr).toString())
+        tmp.renameTo(index)
     }
 }

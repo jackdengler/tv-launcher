@@ -12,6 +12,7 @@ data class NflGame(
     val state: String,
     val detail: String,
     val teamIds: Set<Int>,
+    val eventId: String = "",
 ) {
     /** "NYG 17 – 14 DAL · Q3 5:12" */
     val line get() = "$away $awayScore – $homeScore $home · $detail"
@@ -44,6 +45,7 @@ object Nfl {
                 state = status?.optString("state").orEmpty(),
                 detail = status?.optString("shortDetail").orEmpty(),
                 teamIds = setOfNotNull(id(home), id(away)),
+                eventId = e.optString("id"),
             )
         }
     }

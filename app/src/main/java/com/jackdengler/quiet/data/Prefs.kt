@@ -91,6 +91,16 @@ class Prefs(context: Context) {
         get() = sp.getString("espn_corner", "top-right") ?: "top-right"
         set(v) = sp.edit().putString("espn_corner", v).apply()
 
+    /** Pop-up cards for each play involving my starters or my opponents'. */
+    var espnPlays: Boolean
+        get() = sp.getBoolean("espn_plays", true)
+        set(v) = sp.edit().putBoolean("espn_plays", v).apply()
+
+    /** Seconds to hold play pop-ups so they don't beat the (delayed) TV stream. */
+    var espnPlayDelay: Int
+        get() = sp.getInt("espn_play_delay", 45)
+        set(v) = sp.edit().putInt("espn_play_delay", v).apply()
+
     /** Configured leagues as (number, leagueId, teamId), whether shown or not. */
     val espnLeagues: List<Triple<Int, String, String>>
         get() = listOf(Triple(1, espnLeague, espnTeam), Triple(2, espnLeague2, espnTeam2))

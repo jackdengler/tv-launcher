@@ -177,6 +177,17 @@ fun SettingsScreen(prefs: Prefs, onBack: () -> Unit, onHomeSetup: () -> Unit) {
                 }
             }
             item {
+                SettingRow("Play pop-ups", if (prefs.espnPlays) "On: your starters and your opponents'" else "Off") {
+                    prefs.espnPlays = !prefs.espnPlays
+                }
+            }
+            item {
+                SettingRow("Play delay", "${prefs.espnPlayDelay} s: match it to your stream so plays aren't spoiled") {
+                    val steps = listOf(0, 15, 30, 45, 60, 75, 90)
+                    prefs.espnPlayDelay = steps[(steps.indexOf(prefs.espnPlayDelay) + 1) % steps.size]
+                }
+            }
+            item {
                 SettingRow("Corner", CORNER_LABELS[prefs.espnCorner] ?: "Top right") {
                     prefs.espnCorner = CORNER_LABELS.keys.let { keys -> keys.elementAt((keys.indexOf(prefs.espnCorner) + 1) % keys.size) }
                 }

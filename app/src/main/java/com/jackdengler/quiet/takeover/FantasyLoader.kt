@@ -17,7 +17,7 @@ import java.util.Calendar
  * Blocking; call from Dispatchers.IO.
  */
 object FantasyLoader {
-    class Result(val cards: List<Pair<Int, LeagueCard>>, val errors: List<String>)
+    class Result(val cards: List<Pair<Int, LeagueCard>>, val errors: List<String>, val games: List<com.jackdengler.quiet.data.NflGame> = emptyList())
 
     private val logos = HashMap<String, Bitmap?>()
     private val lastLead = HashMap<Int, Pair<String, Int>>()
@@ -25,7 +25,8 @@ object FantasyLoader {
 
     /** [onlyShown]: the overlay skips leagues switched off; the panel shows everything. */
     fun load(prefs: Prefs, onlyShown: Boolean, now: Calendar = Calendar.getInstance()): Result {
-        val states = runCatching { Nfl.states(Nfl.scoreboard()) }.getOrDefault(emptyMap())
+        val games = runCatching { Nfl.scoreboard() }.getOrDefault(emptyList())
+        val states = Nfl.states(games)
         val cards = ArrayList<Pair<Int, LeagueCard>>()
         val errors = ArrayList<String>()
         for ((n, league, team) in prefs.espnLeagues) {
@@ -34,7 +35,7 @@ object FantasyLoader {
                 .onSuccess { score -> cards += n to card(prefs, n, league, team, score, errors) }
                 .onFailure { errors += "League $n: ${it.message ?: it.javaClass.simpleName}" }
         }
-        return Result(cards, errors)
+        return Result(cards, errors, games)
     }
 
     private fun card(prefs: Prefs, n: Int, league: String, team: String, score: FantasyScore, problems: MutableList<String>): LeagueCard {

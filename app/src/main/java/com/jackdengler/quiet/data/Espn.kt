@@ -6,7 +6,16 @@ import java.util.Calendar
 import java.util.Locale
 
 /** One starter. [state] is the NFL game state: "pre", "in", "post" (bye counts as "post"). */
-data class FantasyPlayer(val name: String, val slot: String, val points: Double, val projected: Double?, val state: String)
+data class FantasyPlayer(
+    val name: String,
+    val slot: String,
+    val points: Double,
+    val projected: Double?,
+    val state: String,
+    val fullName: String = name,
+    /** ESPN pro team id (matches the NFL scoreboard's team ids). */
+    val proTeam: Int = 0,
+)
 
 data class FantasyTeam(
     val id: Int,
@@ -31,7 +40,14 @@ data class FantasyTeam(
 }
 
 /** The current week's matchup for one league. */
-data class FantasyScore(val leagueName: String, val week: Int, val me: FantasyTeam, val opp: FantasyTeam) {
+data class FantasyScore(
+    val leagueName: String,
+    val week: Int,
+    val me: FantasyTeam,
+    val opp: FantasyTeam,
+    /** League scoring: ESPN stat id → points (used to price individual plays). */
+    val scoring: Map<Int, Double> = emptyMap(),
+) {
     val myPoints get() = me.points
     val oppPoints get() = opp.points
 
@@ -121,6 +137,7 @@ object Espn {
                 else -> continue
             }
             return FantasyScore(
+                scoring = scoring(root),
                 leagueName = leagueName,
                 week = period,
                 me = team(me, teams, gameStates, scoringPeriod),
@@ -166,6 +183,8 @@ object Espn {
                 }
             }
             FantasyPlayer(
+                fullName = player.optString("fullName"),
+                proTeam = player.optInt("proTeamId"),
                 name = shortName(player.optString("fullName")),
                 slot = SLOT_NAMES[slot] ?: "FLX",
                 points = pool.optDouble("appliedStatTotal").takeUnless { it.isNaN() } ?: 0.0,
@@ -173,6 +192,14 @@ object Espn {
                 state = states[player.optInt("proTeamId")] ?: if (states.isEmpty()) "pre" else "post",
             )
         }.sortedBy { SLOT_ORDER.indexOf(it.slot).let { i -> if (i < 0) 99 else i } }
+    }
+
+    private fun scoring(root: JSONObject): Map<Int, Double> {
+        val items = root.optJSONObject("settings")?.optJSONObject("scoringSettings")?.optJSONArray("scoringItems")
+            ?: return emptyMap()
+        return (0 until items.length()).associate { i ->
+            items.getJSONObject(i).let { it.optInt("statId") to it.optDouble("points", 0.0) }
+        }
     }
 
     /** "Josh Allen" -> "J. Allen"; team defenses keep their name. */

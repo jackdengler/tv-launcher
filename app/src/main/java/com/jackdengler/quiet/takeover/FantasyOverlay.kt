@@ -5,36 +5,71 @@ import android.graphics.PixelFormat
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import android.widget.LinearLayout
+import com.jackdengler.quiet.data.PlayPop
 
 /**
- * The fantasy graphic in a TYPE_ACCESSIBILITY_OVERLAY window (no overlay permission needed).
- * Never focusable or touchable, so it can't steal remote input. Sits in the chosen corner.
+ * The fantasy graphics in one TYPE_ACCESSIBILITY_OVERLAY window (no overlay permission needed):
+ * the scorebug/card, with play cards stacked on the side away from the screen edge. Never
+ * focusable or touchable, so it can't steal remote input.
  */
 class FantasyOverlay(private val context: Context) {
     private val wm = context.getSystemService(WindowManager::class.java)
-    private var view: FantasyCardView? = null
+    private var root: LinearLayout? = null
+    private var bug: FantasyCardView? = null
+    private var play: PlayCardView? = null
     private var corner = ""
+
+    private fun ensure(corner: String): LinearLayout {
+        val existing = root
+        if (existing != null && corner == this.corner) return existing
+        existing?.let { runCatching { wm.removeView(it) } }
+        val b = bug ?: FantasyCardView(context).also { bug = it }
+        val p = play ?: PlayCardView(context).also { it.visibility = View.GONE; play = it }
+        (b.parent as? LinearLayout)?.removeAllViews()
+        val layout = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = if (corner.endsWith("left")) Gravity.START else Gravity.END
+            // Plays sit below the bug at the top of the screen, above it at the bottom.
+            if (corner.startsWith("bottom")) { addView(p); addView(b) } else { addView(b); addView(p) }
+        }
+        wm.addView(layout, params(corner))
+        root = layout
+        this.corner = corner
+        return layout
+    }
 
     fun show(cards: List<LeagueCard>, style: String, corner: String) {
         if (cards.isEmpty()) return hide()
-        val v = view ?: FantasyCardView(context).also { view = it }
-        if (v.parent == null || corner != this.corner) {
-            if (v.parent != null) runCatching { wm.removeView(v) }
-            wm.addView(v, params(corner))
-            this.corner = corner
-        }
-        v.style = style
-        v.cards = cards
-        v.visibility = View.VISIBLE
+        val layout = ensure(corner)
+        bug?.style = style
+        bug?.cards = cards
+        bug?.visibility = View.VISIBLE
+        layout.visibility = View.VISIBLE
+    }
+
+    fun showPlay(pop: PlayPop, corner: String) {
+        val layout = ensure(corner)
+        val p = play ?: return
+        p.pop = pop
+        p.alpha = 0f
+        p.visibility = View.VISIBLE
+        p.animate().alpha(1f).setDuration(350).start()
+        layout.visibility = View.VISIBLE
+    }
+
+    fun hidePlay() {
+        val p = play ?: return
+        p.animate().alpha(0f).setDuration(450).withEndAction { p.visibility = View.GONE }.start()
     }
 
     fun hide() {
-        view?.visibility = View.GONE
+        root?.visibility = View.GONE
     }
 
     fun destroy() {
-        view?.let { if (it.parent != null) runCatching { wm.removeView(it) } }
-        view = null
+        root?.let { runCatching { wm.removeView(it) } }
+        root = null
     }
 
     private fun params(corner: String): WindowManager.LayoutParams {

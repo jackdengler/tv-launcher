@@ -11,7 +11,12 @@ import android.view.accessibility.AccessibilityEvent
 import com.jackdengler.quiet.MainActivity
 import com.jackdengler.quiet.QuietApp
 import com.jackdengler.quiet.data.Espn
+import com.jackdengler.quiet.data.PlayPop
+import com.jackdengler.quiet.data.Plays
 import com.jackdengler.quiet.data.Prefs
+import com.jackdengler.quiet.data.Watched
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -81,15 +86,18 @@ class QuietAccessibilityService : AccessibilityService() {
      */
     private fun restartOverlay(prefs: Prefs) {
         overlayJob?.cancel()
+        playJob?.cancel()
         overlay?.hide()
         val anyShown = prefs.espnLeagues.any { (n) -> if (n == 1) prefs.espnShow1 else prefs.espnShow2 }
         if (!prefs.espnEnabled || !anyShown) return
+        if (prefs.espnPlays) playJob = scope.launch { watchPlays(prefs) }
         overlayJob = scope.launch {
             while (isActive) {
                 val now = Calendar.getInstance()
                 val screenOn = getSystemService(PowerManager::class.java).isInteractive
                 if (screenOn && !quietInFront && (prefs.espnAlways || Espn.inGameWindow(now))) {
                     val result = withContext(Dispatchers.IO) { FantasyLoader.load(prefs, onlyShown = true, now = now) }
+                    latest = result
                     val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(now.time)
                     val cards = result.cards.map { it.second }
                     prefs.putCached(
@@ -121,6 +129,60 @@ class QuietAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** Latest fantasy data from the overlay loop; the play watcher reads it. */
+    @Volatile private var latest: FantasyLoader.Result? = null
+    private var playJob: Job? = null
+
+    /**
+     * Pop-ups for plays involving my starters or my opponents'. Polls ESPN's game feed every
+     * 15 s, only for live games with one of those players, and holds each play back by the
+     * chosen delay so it shows when the play does on the (delayed) TV stream.
+     */
+    private suspend fun watchPlays(prefs: Prefs) = coroutineScope {
+        val seen = HashSet<String>()
+        val primed = HashSet<String>()
+        val queue = Channel<PlayPop>(Channel.UNLIMITED)
+        launch {
+            for (pop in queue) {
+                val showAt = pop.happenedAt + prefs.espnPlayDelay * 1000L
+                val wait = showAt - System.currentTimeMillis()
+                if (wait > 0) delay(wait)
+                if (System.currentTimeMillis() - showAt > STALE_PLAY_MS || quietInFront) continue
+                overlay?.showPlay(pop, prefs.espnCorner)
+                delay(if (pop.big) BIG_PLAY_MS else PLAY_MS)
+                overlay?.hidePlay()
+                delay(500)
+            }
+        }
+        while (isActive) {
+            val data = latest
+            val live = data?.games?.filter { it.state == "in" }.orEmpty()
+            val screenOn = getSystemService(PowerManager::class.java).isInteractive
+            if (data != null && live.isNotEmpty() && screenOn && !quietInFront) {
+                val watched = data.cards.flatMap { (_, c) ->
+                    c.score.me.starters.map { Watched(it.fullName, it.proTeam, true, c.score.scoring) } +
+                        c.score.opp.starters.map { Watched(it.fullName, it.proTeam, false, c.score.scoring) }
+                }
+                val teams = watched.map { it.proTeam }.toSet()
+                for (game in live.filter { g -> g.teamIds.any { it in teams } && g.eventId.isNotBlank() }) {
+                    val plays = withContext(Dispatchers.IO) { runCatching { Plays.recent(game.eventId) }.getOrDefault(emptyList()) }
+                    if (primed.add(game.eventId)) {
+                        // First look at this game: don't replay everything that already happened.
+                        plays.forEach { seen += it.id }
+                        continue
+                    }
+                    val inGame = watched.filter { it.proTeam in game.teamIds }
+                    for (play in plays) {
+                        if (!seen.add(play.id)) continue
+                        val stamp = if (play.wallclock > 0) play else play.copy(wallclock = System.currentTimeMillis())
+                        Plays.match(stamp, inGame).forEach { queue.trySend(it) }
+                    }
+                }
+            }
+            delay(PLAY_POLL_MS)
+        }
+    }
+
     private fun bringQuietForward() {
         val now = SystemClock.uptimeMillis()
         if (now - lastLaunch < DEBOUNCE_MS) return
@@ -143,6 +205,10 @@ class QuietAccessibilityService : AccessibilityService() {
         private const val DEBOUNCE_MS = 400L
         private const val OVERLAY_REFRESH_MS = 60_000L
         private const val LEAD_HIGHLIGHT_MS = 15_000L
+        private const val PLAY_POLL_MS = 15_000L
+        private const val PLAY_MS = 6_000L
+        private const val BIG_PLAY_MS = 9_000L
+        private const val STALE_PLAY_MS = 120_000L
 
         private val KNOWN_LAUNCHERS = setOf(
             "com.google.android.apps.tv.launcherx", // Google TV

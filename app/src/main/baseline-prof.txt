@@ -1,0 +1,4 @@
+# Precompile all of Quiet's own code at install time (profileinstaller applies this on
+# sideloaded installs too). Compose/AndroidX libraries ship their own profiles.
+HSPLcom/jackdengler/quiet/**->**(**)**
+Lcom/jackdengler/quiet/**;

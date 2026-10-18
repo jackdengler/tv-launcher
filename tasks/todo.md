@@ -48,10 +48,33 @@ The workflow publishes `quiet.apk` to the `latest` release, so every green phase
 - [x] Push → CI green
 
 ## Phase 6 — ESPN fantasy overlay
-- [ ] Settings: enable, league ID, team ID, espn_s2, SWID, always-show
-- [ ] Overlay view via TYPE_ACCESSIBILITY_OVERLAY (not focusable/touchable), top-right text
-- [ ] ESPN fetch every 60 s while visible during game windows only
-- [ ] Push → CI green
+- [x] Settings: enable, league ID, team ID, espn_s2, SWID, always-show
+- [x] Overlay view via TYPE_ACCESSIBILITY_OVERLAY (not focusable/touchable), top-right text
+- [x] ESPN fetch every 60 s while visible during game windows only
+- [x] Push → CI green
 
 ## Review
-(filled in at the end)
+
+**Status:** all 7 phases (0–6) compile and publish in CI. The release asset is at
+`releases/latest/download/quiet.apk`.
+
+**How each phase was checked:** this sandbox can't reach Google's Maven or the Android SDK, so
+GitHub Actions is the only compile gate. Each phase was pushed to `main` and had to build
+green before the next phase was pushed. Exceptions: Phases 4 and 5 went out in the same push
+as a Phase 3 compile fix, so 3–5 were verified together (build 7). Phase 6 was verified on
+its own (build 8). Nothing has run on a real TV yet.
+
+**CI failures and fixes:**
+- `android:resumeWhilePaused` is a hidden attribute that AAPT rejects. Removed.
+- A fully qualified call to the `Modifier.composed` extension doesn't resolve. Now imported.
+- The `idle` property setter clashed with a hand-written `setIdle()` on the JVM. Renamed to `updateIdle()`.
+
+**Not verified yet (needs the TV):**
+- Cold start under 500 ms. The design supports it: a black window, no network or disk I/O
+  before the first frame, the photo decoded off the main thread, WorkManager started
+  lazily, R8, and a baseline profile. It hasn't been measured.
+- Focus smoothness, and how long-press on OK behaves on the TCL remote.
+- How the accessibility takeover behaves on this Google TV build. Restricted settings may apply
+  on Android TV 14.
+- ESPN API field names. They come from community docs of the unofficial API.
+- The Unsplash photo IDs in `photos.json`. Any dead link is skipped.

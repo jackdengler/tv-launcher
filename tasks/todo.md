@@ -94,6 +94,17 @@ The workflow publishes `quiet.apk` to the `latest` release, so every green phase
 - [x] Fantasy v2: scorebug + win pennant, win chart, full rosters, two leagues, corner setting
 - [x] Push → CI green
 
+## Phase 14 — UFC parlay overlay
+- [x] Prefs: parlay overlay on/off, when to show, GitHub token, ESPN results on/off, result delay, corner
+- [x] Read the parlay app's state (`private-data-storage/data.json`, GitHub contents API, ETag) on the TV
+- [x] Mirror the app's math: placed parlays, pushes drop out, cash-outs, win/loss/pending
+- [x] ESPN UFC scoreboard: fight in progress ("NOW" line, live legs) and auto-settle unmarked moneyline legs; app results always win; held back by a delay so results don't beat the stream
+- [x] Overlay card (own TYPE_ACCESSIBILITY_OVERLAY window): one row per placed parlay with leg pips, payout, status; flash on a leg win / bust
+- [x] Shows only while placed parlays are open and the card is live (ESPN), or a result was marked in the app in the last 3 h, or Always
+- [x] Settings rows + "Parlay overlay status" line; INSTALL.md and SPEC.md notes
+- [x] JVM unit check of parsing/matching/math (real data.json + a mock ESPN card)
+- [ ] Push → CI green
+
 ## Review
 
 **Status:** all 7 phases (0–6) compile and publish in CI. The release asset is at

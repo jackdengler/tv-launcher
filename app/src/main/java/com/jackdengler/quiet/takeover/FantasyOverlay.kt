@@ -33,7 +33,7 @@ class FantasyOverlay(private val context: Context) {
             // Plays sit below the bug at the top of the screen, above it at the bottom.
             if (corner.startsWith("bottom")) { addView(p); addView(b) } else { addView(b); addView(p) }
         }
-        wm.addView(layout, params(corner))
+        wm.addView(layout, overlayParams(context, corner))
         root = layout
         this.corner = corner
         return layout
@@ -71,27 +71,28 @@ class FantasyOverlay(private val context: Context) {
         root?.let { runCatching { wm.removeView(it) } }
         root = null
     }
+}
 
-    private fun params(corner: String): WindowManager.LayoutParams {
-        val m = context.resources.displayMetrics
-        val inset = (36f * maxOf(m.widthPixels, m.heightPixels) / 1920f).toInt()
-        return WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT,
-        ).apply {
-            gravity = when (corner) {
-                "top-left" -> Gravity.TOP or Gravity.START
-                "bottom-left" -> Gravity.BOTTOM or Gravity.START
-                "bottom-right" -> Gravity.BOTTOM or Gravity.END
-                else -> Gravity.TOP or Gravity.END
-            }
-            x = inset
-            y = inset
+/** A display-only overlay window in [corner]: never focusable or touchable, inset from the edges. */
+internal fun overlayParams(context: Context, corner: String): WindowManager.LayoutParams {
+    val m = context.resources.displayMetrics
+    val inset = (36f * maxOf(m.widthPixels, m.heightPixels) / 1920f).toInt()
+    return WindowManager.LayoutParams(
+        WindowManager.LayoutParams.WRAP_CONTENT,
+        WindowManager.LayoutParams.WRAP_CONTENT,
+        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+        PixelFormat.TRANSLUCENT,
+    ).apply {
+        gravity = when (corner) {
+            "top-left" -> Gravity.TOP or Gravity.START
+            "bottom-left" -> Gravity.BOTTOM or Gravity.START
+            "bottom-right" -> Gravity.BOTTOM or Gravity.END
+            else -> Gravity.TOP or Gravity.END
         }
+        x = inset
+        y = inset
     }
 }

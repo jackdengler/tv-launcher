@@ -100,3 +100,10 @@ These fill gaps in the spec. Each one can be changed.
   (`https://feeds.content.dowjones.io/public/rss/RSSWorldNews`) plus Variety
   (`https://variety.com/feed/`), interleaved, with the tags "WSJ" and "Variety". The setting
   accepts any number of feed URLs separated by spaces.
+- **UFC parlay overlay:** a second overlay window from the same AccessibilityService. It reads
+  the parlay app's `data.json` from `jackdengler/private-data-storage` (GitHub contents API,
+  read-only token entered in settings, ETag so unchanged reads are free) and mirrors the
+  app's math: placed parlays only, pushes drop out, cash-outs count. ESPN's public UFC
+  scoreboard adds the fight in progress and settles unmarked moneyline legs. Its snapshots
+  are held back by a delay (default 45 s) to match the stream. It polls every 30 s while
+  showing, and every 5 min otherwise.

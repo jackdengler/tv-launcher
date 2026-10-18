@@ -121,6 +121,29 @@ class Prefs(context: Context) {
         get() = sp.getString("espn_swid", "") ?: ""
         set(v) = sp.edit().putString("espn_swid", v.trim()).apply()
 
+    // UFC parlay overlay (reads the parlay app's data.json from GitHub)
+    var parlayEnabled: Boolean
+        get() = sp.getBoolean("parlay_on", false)
+        set(v) = sp.edit().putBoolean("parlay_on", v).apply()
+    var parlayAlways: Boolean
+        get() = sp.getBoolean("parlay_always", false)
+        set(v) = sp.edit().putBoolean("parlay_always", v).apply()
+    /** GitHub token that can read private-data-storage (a read-only fine-grained token). */
+    var parlayToken: String
+        get() = sp.getString("parlay_token", "") ?: ""
+        set(v) = sp.edit().putString("parlay_token", v.trim()).apply()
+    /** Live fight and moneyline results from ESPN's UFC scoreboard. */
+    var parlayEspn: Boolean
+        get() = sp.getBoolean("parlay_espn", true)
+        set(v) = sp.edit().putBoolean("parlay_espn", v).apply()
+    /** Seconds to hold ESPN's fight updates so results don't beat the (delayed) stream. */
+    var parlayDelay: Int
+        get() = sp.getInt("parlay_delay", 45)
+        set(v) = sp.edit().putInt("parlay_delay", v).apply()
+    var parlayCorner: String
+        get() = sp.getString("parlay_corner", "top-right") ?: "top-right"
+        set(v) = sp.edit().putString("parlay_corner", v).apply()
+
     /** Small cache slots for last-known weather/news, so the first frame never waits on network. */
     fun cached(key: String): String? = cache.getString(key, null)
     fun putCached(key: String, value: String) = cache.edit().putString(key, value).apply()

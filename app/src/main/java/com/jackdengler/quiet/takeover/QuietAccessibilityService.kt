@@ -11,9 +11,12 @@ import android.view.accessibility.AccessibilityEvent
 import com.jackdengler.quiet.MainActivity
 import com.jackdengler.quiet.QuietApp
 import com.jackdengler.quiet.data.Espn
+import com.jackdengler.quiet.data.LiveParlay
+import com.jackdengler.quiet.data.Parlays
 import com.jackdengler.quiet.data.PlayPop
 import com.jackdengler.quiet.data.Plays
 import com.jackdengler.quiet.data.Prefs
+import com.jackdengler.quiet.data.UfcFight
 import com.jackdengler.quiet.data.Watched
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
@@ -32,7 +35,8 @@ import java.util.Calendar
 
 /**
  * Home-button takeover without adb: when a stock launcher window comes to the front, start
- * Quiet on top of it (the approach Projectivy uses). Also hosts the ESPN fantasy overlay.
+ * Quiet on top of it (the approach Projectivy uses). Also hosts the ESPN fantasy and UFC parlay
+ * overlays.
  */
 class QuietAccessibilityService : AccessibilityService() {
 
@@ -48,6 +52,8 @@ class QuietAccessibilityService : AccessibilityService() {
         },
     )
     private var overlay: FantasyOverlay? = null
+    private var parlayOverlay: ParlayOverlay? = null
+    private var parlayJob: Job? = null
     private var overlayJob: Job? = null
     private var quietInFront = false
 
@@ -56,10 +62,11 @@ class QuietAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         stockLaunchers = findStockLaunchers()
         overlay = FantasyOverlay(this)
+        parlayOverlay = ParlayOverlay(this)
         val prefs = (application as QuietApp).prefs
-        // Restart the overlay loop whenever settings change; it does nothing while disabled.
+        // Restart the overlay loops whenever settings change; each does nothing while disabled.
         scope.launch {
-            prefs.changes.collectLatest { restartOverlay(prefs) }
+            prefs.changes.collectLatest { restartOverlays(prefs) }
         }
     }
 
@@ -76,7 +83,12 @@ class QuietAccessibilityService : AccessibilityService() {
         val inFront = pkg == packageName || pkg in stockLaunchers
         if (inFront != quietInFront) {
             quietInFront = inFront
-            if (inFront) overlay?.hide() else (application as? QuietApp)?.prefs?.let(::restartOverlay)
+            if (inFront) {
+                overlay?.hide()
+                parlayOverlay?.hide()
+            } else {
+                (application as? QuietApp)?.prefs?.let(::restartOverlays)
+            }
         }
     }
 
@@ -85,7 +97,13 @@ class QuietAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         scope.cancel()
         overlay?.destroy()
+        parlayOverlay?.destroy()
         super.onDestroy()
+    }
+
+    private fun restartOverlays(prefs: Prefs) {
+        restartOverlay(prefs)
+        restartParlays(prefs)
     }
 
     /**
@@ -202,6 +220,125 @@ class QuietAccessibilityService : AccessibilityService() {
         }
     }
 
+    private fun restartParlays(prefs: Prefs) {
+        parlayJob?.cancel()
+        parlayOverlay?.hide()
+        if (prefs.parlayEnabled) parlayJob = scope.launch { watchParlays(prefs) }
+    }
+
+    /**
+     * The UFC parlay card. Re-reads the parlay app's data.json (with an ETag, so an unchanged
+     * file costs nothing) and, while parlays are open, ESPN's UFC card. ESPN snapshots are held
+     * back by the chosen delay so a result never shows before the fight ends on the stream.
+     */
+    private suspend fun watchParlays(prefs: Prefs) = coroutineScope {
+        val state = ParlayState()
+        while (isActive) {
+            val wait = try {
+                parlayTick(prefs, state)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                parlayOverlay?.hide()
+                prefs.putCached(Parlays.STATUS, "Error: ${e.javaClass.simpleName}: ${e.message?.take(160)}")
+                PARLAY_IDLE_MS
+            }
+            delay(wait)
+        }
+    }
+
+    /** What the parlay loop remembers between ticks. */
+    private class ParlayState {
+        var etag: String? = null
+        var json: String? = null
+        /** ESPN fight lists by fetch time, oldest first. */
+        val snaps = ArrayDeque<Pair<Long, List<UfcFight>>>()
+        /** Last shown parlays by id, to spot a leg hitting or a parlay busting. */
+        var last: Map<String, LiveParlay>? = null
+    }
+
+    /** One refresh of the parlay card; returns how long to wait before the next one. */
+    private suspend fun parlayTick(prefs: Prefs, st: ParlayState): Long {
+        val screenOn = getSystemService(PowerManager::class.java).isInteractive
+        val token = prefs.parlayToken
+        val why = when {
+            token.isBlank() -> "Add a GitHub token below"
+            !screenOn -> "Screen off"
+            quietInFront -> "Hidden while Quiet is on screen"
+            else -> null
+        }
+        if (why != null) {
+            parlayOverlay?.hide()
+            prefs.putCached(Parlays.STATUS, why)
+            return PARLAY_IDLE_MS
+        }
+        val fetched = withContext(Dispatchers.IO) { Parlays.fetch(token, st.etag) }
+        fetched.body?.let { st.json = it }
+        st.etag = fetched.etag
+        val json = st.json ?: error("GitHub sent no data.json")
+
+        val now = System.currentTimeMillis()
+        val placed = Parlays.board(json, emptyList())
+        if (placed.open.isEmpty()) {
+            parlayOverlay?.hide()
+            st.snaps.clear()
+            st.last = null
+            prefs.putCached(Parlays.STATUS, "No open parlays (${placed.parlays.size} placed). Place one in the app")
+            return PARLAY_IDLE_MS
+        }
+
+        // ESPN, held back by the delay: show the newest snapshot that's at least that old.
+        var espnNote: String? = null
+        val cutoff = now - prefs.parlayDelay * 1000L
+        if (prefs.parlayEspn) {
+            withContext(Dispatchers.IO) { runCatching { Parlays.fights() } }
+                .onSuccess { st.snaps.addLast(now to it) }
+                .onFailure { espnNote = "ESPN unavailable" }
+            while (st.snaps.size > 1 && st.snaps[1].first <= cutoff) st.snaps.removeFirst()
+        } else {
+            st.snaps.clear()
+        }
+        val snap = st.snaps.firstOrNull()?.takeIf { it.first <= cutoff }
+        val fights = snap?.second.orEmpty()
+        // While ESPN snapshots are still ageing past the delay, its results aren't in yet: don't
+        // treat them as news (or as the card not being live).
+        val ready = snap != null || st.snaps.isEmpty()
+        val board = Parlays.board(json, fights)
+
+        val live = prefs.parlayAlways || Parlays.cardLive(fights) || now - board.lastMarked < RECENTLY_MARKED_MS
+        val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(now))
+        if (!live) {
+            parlayOverlay?.hide()
+            prefs.putCached(
+                Parlays.STATUS,
+                listOfNotNull("Checked $time", "${board.open.size} open, waiting for the card to start", espnNote)
+                    .joinToString(" · ") + ". Set When to show: Always to test",
+            )
+            // Not ready: the held-back ESPN view is still filling, so look again soon.
+            return if (ready) PARLAY_IDLE_MS else PARLAY_LIVE_MS
+        }
+
+        // Flash a parlay whose leg just hit (+1) or that just busted (-1), until the next tick.
+        val before = st.last
+        val flash = if (before == null || !ready) emptyMap<String, Int>() else board.parlays.mapNotNull { p ->
+            val old = before[p.id] ?: return@mapNotNull null
+            when {
+                p.status == "loss" && old.status != "loss" -> p.id to -1
+                p.hits > old.hits -> p.id to 1
+                else -> null
+            }
+        }.toMap()
+        if (ready) st.last = board.parlays.associateBy { it.id }
+
+        if (!quietInFront) parlayOverlay?.show(board, flash, prefs.parlayCorner)
+        prefs.putCached(
+            Parlays.STATUS,
+            listOfNotNull("Updated $time", "${board.open.size} open", board.now?.let { "Now: $it" }, espnNote)
+                .joinToString(" · "),
+        )
+        return PARLAY_LIVE_MS
+    }
+
     private fun bringQuietForward() {
         val now = SystemClock.uptimeMillis()
         if (now - lastLaunch < DEBOUNCE_MS) return
@@ -228,6 +365,9 @@ class QuietAccessibilityService : AccessibilityService() {
         private const val PLAY_MS = 6_000L
         private const val BIG_PLAY_MS = 9_000L
         private const val STALE_PLAY_MS = 120_000L
+        private const val PARLAY_LIVE_MS = 30_000L
+        private const val PARLAY_IDLE_MS = 5 * 60_000L
+        private const val RECENTLY_MARKED_MS = 3 * 60 * 60_000L
 
         private val KNOWN_LAUNCHERS = setOf(
             "com.google.android.apps.tv.launcherx", // Google TV

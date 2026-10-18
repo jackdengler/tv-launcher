@@ -254,6 +254,55 @@ fun SettingsScreen(prefs: Prefs, onBack: () -> Unit, onHomeSetup: () -> Unit) {
                     }
                 }
             }
+
+            item { Section("UFC parlay overlay") }
+            item {
+                SettingRow("Parlay overlay", if (prefs.parlayEnabled) "On" else "Off") { prefs.parlayEnabled = !prefs.parlayEnabled }
+            }
+            item {
+                // The service updates this in the background; re-read it every few seconds.
+                var tick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        kotlinx.coroutines.delay(3_000)
+                        tick++
+                    }
+                }
+                tick
+                val status = if (!prefs.parlayEnabled) "Off" else prefs.cached(com.jackdengler.quiet.data.Parlays.STATUS)
+                    ?: "No update yet. Needs the Quiet Home accessibility service on"
+                SettingRow("Parlay status", status) { }
+            }
+            item {
+                SettingRow("   When to show", if (prefs.parlayAlways) "Always (while a parlay is open)" else "While the card is live") {
+                    prefs.parlayAlways = !prefs.parlayAlways
+                }
+            }
+            item {
+                SettingRow("   ESPN live results", if (prefs.parlayEspn) "On: fight on now + moneyline results" else "Off: only results marked in the app") {
+                    prefs.parlayEspn = !prefs.parlayEspn
+                }
+            }
+            item {
+                SettingRow("   Result delay", "${prefs.parlayDelay} s: match it to your stream so results aren't spoiled") {
+                    val steps = listOf(0, 15, 30, 45, 60, 75, 90, 120)
+                    prefs.parlayDelay = steps[(steps.indexOf(prefs.parlayDelay) + 1) % steps.size]
+                }
+            }
+            item {
+                SettingRow("   Corner", CORNER_LABELS[prefs.parlayCorner] ?: "Top right") {
+                    prefs.parlayCorner = CORNER_LABELS.keys.let { keys -> keys.elementAt((keys.indexOf(prefs.parlayCorner) + 1) % keys.size) }
+                }
+            }
+            item {
+                SettingRow("   GitHub token", if (prefs.parlayToken.isBlank()) "Not set: a read-only token for private-data-storage" else "Saved") {
+                    editor = Editor(
+                        "GitHub token",
+                        "GitHub → Settings → Developer settings → Fine-grained tokens: only private-data-storage, Contents read-only. Paste it with the Google Home app's remote keyboard.",
+                        prefs.parlayToken, secret = true,
+                    ) { prefs.parlayToken = it }
+                }
+            }
         }
     }
 

@@ -93,6 +93,32 @@ Open **All apps** and choose **Quiet settings**, the first tile:
 The overlay needs the Home button service from step 3 to be on. Broadcaster logos (FOX, CBS)
 are part of the picture and can't be removed; use **Corner** to stay out of their way.
 
+### UFC parlay overlay
+
+Shows the parlays you've placed in the parlay app while a UFC card is on.
+
+1. On your phone, make a GitHub token: **GitHub → Settings → Developer settings → Personal
+   access tokens → Fine-grained tokens**. Give it access to **private-data-storage** only, with
+   **Contents: Read-only**.
+2. In **Quiet settings → UFC parlay overlay**, open **GitHub token** and paste it with the
+   Google Home app's remote keyboard.
+3. Turn **Parlay overlay** on. **Parlay status** should say "Updated …" or "waiting for the
+   card to start". Set **When to show** to **Always** to see it right away.
+
+What it shows: one row per placed parlay with a dot per leg (green hit, red lost, gold
+fighting now, hollow still to come), stake → payout, and hits so far (or WON / BUST /
+CASHED). A **NOW** line names the fight that's on. A parlay flashes gold when a leg hits and
+red when it busts.
+
+- **When to show:** while the card is live (from ESPN), or within 3 hours of marking a result
+  in the app. It hides once no parlay is open.
+- **ESPN live results:** settles moneyline legs from ESPN's results before you mark them.
+  Props (method, round) wait for you to mark them in the app. A result you mark in the app
+  always wins.
+- **Result delay:** holds ESPN's updates back so a result doesn't show before the fight ends
+  on your stream (45 s by default).
+- **Corner:** separate from the fantasy overlay's.
+
 ### Background
 
 **Quiet settings → Background** cycles through:

@@ -95,6 +95,13 @@ fun SettingsScreen(prefs: Prefs, onBack: () -> Unit, onHomeSetup: () -> Unit) {
             item { UpdateRow() }
             item { Section("Home screen") }
             item {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                SettingRow("Background", if (prefs.santaMonica) "Santa Monica: live time of day & weather" else "Photo mix") {
+                    prefs.santaMonica = !prefs.santaMonica
+                    com.jackdengler.quiet.photos.PhotoSyncWorker.syncNow(context)
+                }
+            }
+            item {
                 SettingRow("Weather location", prefs.placeName, Modifier.focusRequester(first)) { locating = true }
             }
             item {

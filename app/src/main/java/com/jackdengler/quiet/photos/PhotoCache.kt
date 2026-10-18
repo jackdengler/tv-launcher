@@ -10,10 +10,10 @@ class PhotoCache(context: Context) {
     val dir = File(context.filesDir, "photos")
     private val index = File(dir, "index.json")
 
-    data class Entry(val file: String, val url: String, val tags: Set<String>)
+    data class Entry(val file: String, val url: String, val tags: Set<String>, val credit: String = "")
 
     fun entries(): List<PhotoSource> = read().mapNotNull { e ->
-        File(dir, e.file).takeIf { it.exists() }?.let { PhotoSource.Cached(it, e.tags) }
+        File(dir, e.file).takeIf { it.exists() }?.let { PhotoSource.Cached(it, e.tags, e.credit) }
     }
 
     fun read(): List<Entry> {
@@ -22,7 +22,7 @@ class PhotoCache(context: Context) {
             val arr = JSONObject(index.readText()).getJSONArray("photos")
             List(arr.length()) { i ->
                 val o = arr.getJSONObject(i)
-                Entry(o.getString("file"), o.optString("url"), o.optJSONArray("tags").toStringSet())
+                Entry(o.getString("file"), o.optString("url"), o.optJSONArray("tags").toStringSet(), o.optString("credit"))
             }
         }.getOrDefault(emptyList())
     }
@@ -32,7 +32,9 @@ class PhotoCache(context: Context) {
         dir.mkdirs()
         val arr = JSONArray()
         for (e in entries) {
-            arr.put(JSONObject().put("file", e.file).put("url", e.url).put("tags", JSONArray(e.tags.toList())))
+            arr.put(
+                JSONObject().put("file", e.file).put("url", e.url).put("tags", JSONArray(e.tags.toList())).put("credit", e.credit),
+            )
         }
         val tmp = File(dir, "index.json.tmp")
         tmp.writeText(JSONObject().put("photos", arr).toString())

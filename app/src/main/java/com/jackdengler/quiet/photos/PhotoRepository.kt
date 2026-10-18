@@ -22,17 +22,21 @@ sealed interface PhotoSource {
     val key: String
     val tags: Set<String>
 
+    /** Attribution shown on screen (required by CC BY licenses); empty for bundled art. */
+    val credit: String
+
     data class Asset(val path: String, override val tags: Set<String>) : PhotoSource {
         override val key get() = "asset:$path"
+        override val credit get() = ""
     }
 
-    data class Cached(val file: File, override val tags: Set<String>) : PhotoSource {
+    data class Cached(val file: File, override val tags: Set<String>, override val credit: String = "") : PhotoSource {
         override val key get() = "file:${file.name}"
     }
 }
 
 /** A decoded photo, ready to draw: full image, a tiny blurred copy for frosted tiles, and its accent. */
-class LoadedPhoto(val key: String, val image: ImageBitmap, val frost: ImageBitmap, val accent: Color)
+class LoadedPhoto(val key: String, val image: ImageBitmap, val frost: ImageBitmap, val accent: Color, val credit: String = "")
 
 enum class TimeSlot(val tag: String) {
     MORNING("morning"), DAY("day"), NIGHT("night");
@@ -68,7 +72,7 @@ class PhotoRepository(private val context: Context) {
             val frost = small.boxBlur(FROST_RADIUS)
             full.prepareToDraw()
             frost.prepareToDraw()
-            LoadedPhoto(source.key, full.asImageBitmap(), frost.asImageBitmap(), accent)
+            LoadedPhoto(source.key, full.asImageBitmap(), frost.asImageBitmap(), accent, source.credit)
         }.getOrNull()
     }
 
@@ -132,12 +136,45 @@ internal fun org.json.JSONArray?.toStringSet(): Set<String> =
     if (this == null) emptySet() else (0 until length()).map { getString(it).lowercase() }.toSet()
 
 /**
- * Time-aware shuffle: cycles through the photos for the current time slot (tagged with it or
- * untagged), falling back to everything when fewer than two match. Never repeats back to back.
+ * Which photos suit right now. [key] identifies the situation (a new key restarts the cycle);
+ * [rank] scores each photo: 0 = unsuitable, higher = better match.
+ */
+class Selection(val key: String, val rank: (PhotoSource) -> Int) {
+    companion object {
+        /** Photo mix: photos tagged for the current time slot (or untagged). */
+        fun timeOfDay(hour: Int): Selection {
+            val slot = TimeSlot.at(hour)
+            return Selection("mix/${slot.tag}") { p ->
+                when {
+                    SANTA_MONICA_TAG in p.tags -> 0
+                    p.tags.isEmpty() || slot.tag in p.tags -> 2
+                    else -> 1
+                }
+            }
+        }
+
+        /** Live Santa Monica: photos matching the real time of day there, then the weather. */
+        fun santaMonica(scene: Scene, sky: Sky): Selection = Selection("sm/${scene.tag}/${sky.tag}") { p ->
+            val skyTags = Sky.entries.map { it.tag }.filter { it in p.tags }
+            when {
+                SANTA_MONICA_TAG !in p.tags || scene.tag !in p.tags -> 0
+                sky.tag in skyTags -> 3
+                skyTags.isEmpty() -> 2
+                else -> 1
+            }
+        }
+
+        const val SANTA_MONICA_TAG = "santa-monica"
+    }
+}
+
+/**
+ * Shuffled cycle through the best-matching photos (at least two; it widens to weaker matches,
+ * then to everything, rather than repeat one photo). Never repeats back to back.
  */
 class Playlist(private val repository: PhotoRepository) {
     private var cycle: List<PhotoSource> = emptyList()
-    private var slot: TimeSlot? = null
+    private var key: String? = null
 
     /** Index of the photo last returned by [next], within the current cycle. */
     var position = -1
@@ -145,14 +182,18 @@ class Playlist(private val repository: PhotoRepository) {
     val cycleLength get() = cycle.size
 
     /** Disk access; call off the main thread. */
-    fun next(hour: Int): PhotoSource? {
-        val now = TimeSlot.at(hour)
-        if (position + 1 >= cycle.size || now != slot) {
+    fun next(selection: Selection): PhotoSource? {
+        if (position + 1 >= cycle.size || selection.key != key) {
             val last = cycle.getOrNull(position)?.key
-            slot = now
-            val all = repository.sources()
-            val fit = all.filter { it.tags.isEmpty() || now.tag in it.tags }
-            cycle = (if (fit.size >= 2) fit else all).shuffled().let { list ->
+            key = selection.key
+            val ranked = repository.sources().groupBy(selection.rank)
+            var pool = emptyList<PhotoSource>()
+            for (r in ranked.keys.filter { it > 0 }.sortedDescending()) {
+                pool = pool + ranked.getValue(r)
+                if (pool.size >= 2) break
+            }
+            if (pool.isEmpty()) pool = ranked.values.flatten()
+            cycle = pool.shuffled().let { list ->
                 if (list.size > 1 && list.first().key == last) list.drop(1) + list.first() else list
             }
             position = -1

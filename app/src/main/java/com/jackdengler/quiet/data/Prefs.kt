@@ -39,6 +39,11 @@ class Prefs(context: Context) {
         set(v) = sp.edit().putString("rss", v.trim()).apply()
     val feeds: List<String> get() = rssUrl.split(Regex("[\\s,]+")).filter { it.startsWith("http") }
 
+    /** Background: live Santa Monica photos (default) or the general photo mix. */
+    var santaMonica: Boolean
+        get() = sp.getBoolean("bg_santa_monica", true)
+        set(v) = sp.edit().putBoolean("bg_santa_monica", v).apply()
+
     /** Package chosen for home tile [index] by long-press, or null for the default. */
     fun slotPackage(index: Int): String? = sp.getString("slot$index", null)
     fun setSlotPackage(index: Int, pkg: String?) = sp.edit().putString("slot$index", pkg).apply()

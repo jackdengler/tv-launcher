@@ -13,6 +13,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.jackdengler.quiet.BuildConfig
+import com.jackdengler.quiet.QuietApp
 import com.jackdengler.quiet.net.Http
 import com.jackdengler.quiet.photos.PhotoRepository.Companion.cover
 import com.jackdengler.quiet.photos.PhotoRepository.Companion.sampleSizeFor
@@ -30,35 +31,51 @@ import java.util.concurrent.TimeUnit
 class PhotoSyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        val prefs = applicationContext.getSharedPreferences("photo_sync", Context.MODE_PRIVATE)
+        val syncPrefs = applicationContext.getSharedPreferences("photo_sync", Context.MODE_PRIVATE)
         val cache = PhotoCache(applicationContext)
-        val response = runCatching { Http.get(PHOTOS_URL, prefs.getString("etag", null)) }
-            .getOrElse { return@withContext Result.retry() }
-        if (response.code == 304) return@withContext Result.success()
-        val body = response.body ?: return@withContext Result.retry()
+        val previous = cache.read()
 
-        val wanted = runCatching {
-            val arr = JSONObject(body).getJSONArray("photos")
-            List(arr.length()) { i ->
-                val o = arr.getJSONObject(i)
-                val url = o.getString("url")
-                PhotoCache.Entry(fileName(url), url, o.optJSONArray("tags").toStringSet())
+        // 1. photos.json from the repo (ETag: unchanged → keep the entries we already have).
+        val response = runCatching { Http.get(PHOTOS_URL, syncPrefs.getString("etag", null)) }.getOrNull()
+        val listed: List<PhotoCache.Entry>? = when {
+            response == null -> null
+            response.code == 304 -> previous.filter { Selection.SANTA_MONICA_TAG !in it.tags }
+            else -> response.body?.let { body ->
+                runCatching {
+                    val arr = JSONObject(body).getJSONArray("photos")
+                    List(arr.length()) { i ->
+                        val o = arr.getJSONObject(i)
+                        val url = o.getString("url")
+                        PhotoCache.Entry(fileName(url), url, o.optJSONArray("tags").toStringSet())
+                    }
+                }.getOrNull()
             }
-        }.getOrElse { return@withContext Result.failure() }
+        }
+
+        // 2. Live Santa Monica set, searched by time of day and weather (only when it's in use).
+        val santaMonica = if ((applicationContext as QuietApp).prefs.santaMonica) Openverse.santaMonica(::fileName) else emptyList()
+        if (listed == null && santaMonica.isEmpty()) return@withContext Result.retry()
+        val oldSantaMonica = previous.filter { Selection.SANTA_MONICA_TAG in it.tags }
+        val wanted = (listed ?: previous.filter { Selection.SANTA_MONICA_TAG !in it.tags }) +
+            santaMonica.ifEmpty { if ((applicationContext as QuietApp).prefs.santaMonica) oldSantaMonica else emptyList() }
 
         cache.dir.mkdirs()
-        val ready = ArrayList<PhotoCache.Entry>()
-        for (entry in wanted.distinctBy { it.file }) {
+        val unique = wanted.distinctBy { it.file }
+        // Files already on disk first, so the index never shrinks while new ones download.
+        val (have, missing) = unique.partition { File(cache.dir, it.file).exists() }
+        val ready = ArrayList(have)
+        cache.write(ready)
+        for (entry in missing) {
             if (isStopped) break
-            val file = File(cache.dir, entry.file)
-            if (file.exists() || runCatching { fetch(entry.url, file) }.getOrDefault(false)) ready += entry
-            // Publish progress so photos appear as they arrive, not after the whole batch.
-            cache.write(ready)
+            if (runCatching { fetch(entry.url, File(cache.dir, entry.file)) }.getOrDefault(false)) {
+                ready += entry
+                cache.write(ready) // photos appear as they arrive
+            }
         }
         if (!isStopped) {
             val keep = ready.map { it.file }.toSet() + "index.json"
             cache.dir.listFiles()?.filter { it.name !in keep }?.forEach { it.delete() }
-            response.etag?.let { prefs.edit().putString("etag", it).apply() }
+            if (listed != null) response?.etag?.let { syncPrefs.edit().putString("etag", it).apply() }
         }
         Result.success()
     }
@@ -87,9 +104,19 @@ class PhotoSyncWorker(context: Context, params: WorkerParameters) : CoroutineWor
     companion object {
         const val PHOTOS_URL = "https://raw.githubusercontent.com/${BuildConfig.REPO}/main/photos.json"
 
-        private fun fileName(url: String): String {
+        fun fileName(url: String): String {
             val digest = MessageDigest.getInstance("SHA-1").digest(url.toByteArray())
             return digest.joinToString("") { "%02x".format(it) }.take(20) + ".jpg"
+        }
+
+        /** Re-sync right away (e.g. after switching backgrounds). */
+        fun syncNow(context: Context) {
+            val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                "photo-sync-now",
+                ExistingWorkPolicy.REPLACE,
+                OneTimeWorkRequestBuilder<PhotoSyncWorker>().setConstraints(constraints).build(),
+            )
         }
 
         /** Periodic sync every 6 h plus one now; both wait for a network connection. */

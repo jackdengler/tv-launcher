@@ -102,6 +102,14 @@ fun HomeScreen(
             Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp)
                 .graphicsLayer { alpha = (1f - idle()) * (1f - 0.15f * night()) },
         )
+        if (backdrop.credit.isNotEmpty()) {
+            Text(
+                backdrop.credit,
+                maxLines = 1,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 36.dp, bottom = 20.dp).widthIn(max = 520.dp),
+                style = TextStyle(fontFamily = QuietFonts.Manrope, fontSize = 13.sp, color = Color.White.copy(alpha = 0.42f)),
+            )
+        }
         // Idle: the photo takes over; a compact clock, date, weather and headline sit bottom-left.
         AnimatedVisibility(
             visible = isIdle,

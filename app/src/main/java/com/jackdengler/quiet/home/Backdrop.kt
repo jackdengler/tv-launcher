@@ -62,6 +62,9 @@ class BackdropState {
     val layers = mutableStateListOf<BackdropLayer>()
     var accent by mutableStateOf(DefaultAccent)
         private set
+    /** Photo attribution for the visible photo (empty when none is needed). */
+    var credit by mutableStateOf("")
+        private set
     var dotCount by mutableIntStateOf(0)
     var dotIndex by mutableIntStateOf(0)
 
@@ -78,6 +81,7 @@ class BackdropState {
         val layer = BackdropLayer(photo, Offset(Random.nextFloat() * 2 - 1, Random.nextFloat() * 2 - 1) * MAX_DRIFT)
         layers.add(layer)
         accent = photo.accent
+        credit = photo.credit
         layer.zoomJob = scope.launch {
             layer.progress.animateTo(
                 1f, infiniteRepeatable(tween(KEN_BURNS_MS, easing = EaseInOutSine), RepeatMode.Reverse),

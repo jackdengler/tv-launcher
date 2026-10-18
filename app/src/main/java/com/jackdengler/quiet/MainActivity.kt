@@ -42,6 +42,9 @@ import com.jackdengler.quiet.home.rememberMinuteClock
 import com.jackdengler.quiet.photos.PhotoRepository
 import com.jackdengler.quiet.photos.PhotoSyncWorker
 import com.jackdengler.quiet.photos.Playlist
+import com.jackdengler.quiet.photos.Selection
+import com.jackdengler.quiet.photos.Sun
+import com.jackdengler.quiet.data.Prefs
 import com.jackdengler.quiet.settings.SettingsScreen
 import com.jackdengler.quiet.ui.DesignPixels
 import com.jackdengler.quiet.ui.LocalAccent
@@ -146,7 +149,7 @@ private fun QuietRoot(
     LaunchedEffect(Unit) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) { idleWatch() }
     }
-    PhotoRotation(backdrop, app.photos)
+    PhotoRotation(backdrop, app.photos, app.prefs) { ambient.weather?.code }
     LaunchedEffect(Unit) {
         // First run (or the service was turned off): explain the Home button setup once.
         if (!app.prefs.onboardingSeen && !QuietAccessibilityService.isEnabled(app)) navigate(Screen.Onboarding)
@@ -237,15 +240,20 @@ private const val BACKGROUND_START_DELAY_MS = 8_000L
 
 /** Advances the photo every 60 s while Quiet is visible; stops entirely when it is not. */
 @Composable
-private fun PhotoRotation(backdrop: BackdropState, photos: PhotoRepository) {
+private fun PhotoRotation(backdrop: BackdropState, photos: PhotoRepository, prefs: Prefs, weatherCode: () -> Int?) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(backdrop) {
         val playlist = Playlist(photos)
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             backdrop.resume(this)
             while (true) {
-                val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-                val source = withContext(Dispatchers.IO) { playlist.next(hour) }
+                val selection = if (prefs.santaMonica) {
+                    val now = System.currentTimeMillis()
+                    Selection.santaMonica(Sun.scene(Sun.SANTA_MONICA_LAT, Sun.SANTA_MONICA_LON, now), Sun.sky(weatherCode()))
+                } else {
+                    Selection.timeOfDay(Calendar.getInstance().get(Calendar.HOUR_OF_DAY))
+                }
+                val source = withContext(Dispatchers.IO) { playlist.next(selection) }
                 val photo = source?.let { photos.load(it) }
                 if (photo != null) {
                     backdrop.dotCount = playlist.cycleLength

@@ -68,6 +68,9 @@ class PhotoRepository(private val context: Context) {
         }
     }
 
+    /** Changes whenever the download cache's index is rewritten. */
+    fun version(): Long = PhotoCache(context).indexModified()
+
     /** Every photo available right now. Disk access only; call off the main thread. */
     fun sources(): List<PhotoSource> = PhotoCache(context).entries() + bundled
 
@@ -183,6 +186,7 @@ class Selection(val key: String, val rank: (PhotoSource) -> Int) {
 class Playlist(private val repository: PhotoRepository) {
     private var cycle: List<PhotoSource> = emptyList()
     private var key: String? = null
+    private var version = -1L
 
     /** Index of the photo last returned by [next], within the current cycle. */
     var position = -1
@@ -191,9 +195,12 @@ class Playlist(private val repository: PhotoRepository) {
 
     /** Disk access; call off the main thread. */
     fun next(selection: Selection): PhotoSource? {
-        if (position + 1 >= cycle.size || selection.key != key) {
+        val v = repository.version()
+        // Rebuild when the cycle ends, the situation changes, or new photos have arrived.
+        if (position + 1 >= cycle.size || selection.key != key || v != version) {
             val last = cycle.getOrNull(position)?.key
             key = selection.key
+            version = v
             val ranked = repository.sources().groupBy(selection.rank)
             var pool = emptyList<PhotoSource>()
             for (r in ranked.keys.filter { it > 0 }.sortedDescending()) {

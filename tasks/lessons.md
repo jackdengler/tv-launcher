@@ -9,3 +9,9 @@
 - **Compose text API names:** use `TextLayoutResult.getLineEnd(line, visibleEnd)`. There is no
   `lineEnd`. When the local machine can't compile, check unfamiliar API names against the
   library's public surface before pushing.
+- **Don't draw people procedurally.** A vector character reads as clip art, so pick realistic
+  objects (a shaded brush) instead. Animation pacing is easy to set too fast; default to slow
+  and deliberate on a TV.
+- **"It doesn't show up" needs a status line on day one.** Every network-fed feature gets a
+  visible "last sync" summary in settings, and gets a second source when the first is
+  unverified.

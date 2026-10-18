@@ -102,6 +102,22 @@ fun SettingsScreen(prefs: Prefs, onBack: () -> Unit, onHomeSetup: () -> Unit) {
                 }
             }
             item {
+                // Updated by the background sync; re-read every few seconds.
+                var tick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        kotlinx.coroutines.delay(3_000)
+                        tick++
+                    }
+                }
+                tick
+                val context = androidx.compose.ui.platform.LocalContext.current
+                SettingRow(
+                    "Photos status",
+                    prefs.cached(com.jackdengler.quiet.photos.PhotoSyncWorker.STATUS) ?: "Not synced yet. Select to sync now",
+                ) { com.jackdengler.quiet.photos.PhotoSyncWorker.syncNow(context) }
+            }
+            item {
                 SettingRow("Weather location", prefs.placeName, Modifier.focusRequester(first)) { locating = true }
             }
             item {

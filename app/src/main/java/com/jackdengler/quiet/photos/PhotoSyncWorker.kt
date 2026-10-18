@@ -53,7 +53,10 @@ class PhotoSyncWorker(context: Context, params: WorkerParameters) : CoroutineWor
         }
 
         // 2. Live Santa Monica set, searched by time of day and weather (only when it's in use).
-        val santaMonica = if ((applicationContext as QuietApp).prefs.santaMonica) Openverse.santaMonica(::fileName) else emptyList()
+        val app = applicationContext as QuietApp
+        val fromCommons = if (app.prefs.santaMonica) Commons.santaMonica(::fileName) else emptyList()
+        val fromOpenverse = if (app.prefs.santaMonica) Openverse.santaMonica(::fileName) else emptyList()
+        val santaMonica = (fromCommons + fromOpenverse).distinctBy { it.file }
         if (listed == null && santaMonica.isEmpty()) return@withContext Result.retry()
         val oldSantaMonica = previous.filter { Selection.SANTA_MONICA_TAG in it.tags }
         val wanted = (listed ?: previous.filter { Selection.SANTA_MONICA_TAG !in it.tags }) +
@@ -65,13 +68,25 @@ class PhotoSyncWorker(context: Context, params: WorkerParameters) : CoroutineWor
         val (have, missing) = unique.partition { File(cache.dir, it.file).exists() }
         val ready = ArrayList(have)
         cache.write(ready)
+        var failed = 0
         for (entry in missing) {
             if (isStopped) break
-            if (runCatching { fetch(entry.url, File(cache.dir, entry.file)) }.getOrDefault(false)) {
-                ready += entry
+            val luma = runCatching { fetch(entry.url, File(cache.dir, entry.file)) }.getOrNull()
+            if (luma != null) {
+                ready += entry.copy(tags = retag(entry.tags, luma))
                 cache.write(ready) // photos appear as they arrive
+            } else {
+                failed++
             }
         }
+        val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date())
+        val smReady = ready.count { Selection.SANTA_MONICA_TAG in it.tags }
+        app.prefs.putCached(
+            STATUS,
+            "Synced $time · Santa Monica photos: $smReady (found ${fromCommons.size} on Wikimedia, " +
+                "${fromOpenverse.size} on Openverse) · photos.json: ${if (listed == null) "unreachable" else listed.size}" +
+                if (failed > 0) " · $failed downloads failed" else "",
+        )
         if (!isStopped) {
             val keep = ready.map { it.file }.toSet() + "index.json"
             cache.dir.listFiles()?.filter { it.name !in keep }?.forEach { it.delete() }
@@ -80,28 +95,56 @@ class PhotoSyncWorker(context: Context, params: WorkerParameters) : CoroutineWor
         Result.success()
     }
 
-    private fun fetch(url: String, dest: File): Boolean {
+    /**
+     * Search keywords aren't proof: a "night" result can be a daytime shot. Average brightness
+     * decides between night and daylight tags.
+     */
+    private fun retag(tags: Set<String>, luma: Float): Set<String> {
+        if (Selection.SANTA_MONICA_TAG !in tags) return tags
+        return when {
+            "night" in tags && luma > 0.38f -> tags - "night" + "day"
+            "night" !in tags && luma < 0.16f -> tags - setOf("day", "dawn", "golden", "clear", "cloudy", "fog") + "night"
+            else -> tags
+        }
+    }
+
+    /** Downloads, downscales and stores a photo; returns its average brightness (0..1) or null. */
+    private fun fetch(url: String, dest: File): Float? {
         val raw = File(dest.parentFile, dest.name + ".part")
         try {
-            if (!Http.download(url, raw)) return false
+            if (!Http.download(url, raw)) return null
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeFile(raw.path, bounds)
-            if (bounds.outWidth <= 0) return false
+            if (bounds.outWidth <= 0) return null
             val opts = BitmapFactory.Options().apply {
                 inSampleSize = sampleSizeFor(bounds.outWidth, bounds.outHeight, PhotoRepository.SCREEN_W, PhotoRepository.SCREEN_H)
             }
             val bitmap = BitmapFactory.decodeFile(raw.path, opts)?.cover(PhotoRepository.SCREEN_W, PhotoRepository.SCREEN_H)
-                ?: return false
+                ?: return null
+            val luma = averageLuma(bitmap)
             val tmp = File(dest.parentFile, dest.name + ".tmp")
             tmp.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 88, it) }
             bitmap.recycle()
-            return tmp.renameTo(dest)
+            return if (tmp.renameTo(dest)) luma else null
         } finally {
             raw.delete()
         }
     }
 
+    private fun averageLuma(bitmap: Bitmap): Float {
+        val small = Bitmap.createScaledBitmap(bitmap, 64, 36, true)
+        val px = IntArray(64 * 36)
+        small.getPixels(px, 0, 64, 0, 0, 64, 36)
+        small.recycle()
+        return px.sumOf { c ->
+            (0.2126 * ((c shr 16) and 0xFF) + 0.7152 * ((c shr 8) and 0xFF) + 0.0722 * (c and 0xFF)) / 255.0
+        }.toFloat() / px.size
+    }
+
     companion object {
+        /** Cache key for the last sync's summary, shown in settings. */
+        const val STATUS = "photo_status"
+
         const val PHOTOS_URL = "https://raw.githubusercontent.com/${BuildConfig.REPO}/main/photos.json"
 
         fun fileName(url: String): String {

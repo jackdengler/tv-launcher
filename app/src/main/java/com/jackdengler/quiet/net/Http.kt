@@ -7,7 +7,8 @@ import java.net.URL
 /** Minimal blocking HTTP GET helpers (call from Dispatchers.IO / workers only). */
 object Http {
     private const val TIMEOUT_MS = 15_000
-    private const val USER_AGENT = "Quiet/1.0 (Android TV launcher)"
+    // Wikimedia asks API clients to identify themselves with a contact URL.
+    private const val USER_AGENT = "Quiet/1.0 (Android TV launcher; https://github.com/jackdengler/tv-launcher)"
 
     class Response(val code: Int, val body: String?, val etag: String?)
 

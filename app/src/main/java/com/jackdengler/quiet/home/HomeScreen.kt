@@ -164,6 +164,10 @@ fun Clock(now: Long, size: Int = 148, alpha: Float = 1f) {
             shadow = TextShadow,
         ),
         painterScale = size / 148f,
+        strokeWeight = 0.13f,
+        msPerGlyph = 1_200,
+        minMs = 2_400,
+        maxMs = 6_500,
     )
 }
 
@@ -271,8 +275,12 @@ fun HeadlinePill(
                     fontFamily = QuietFonts.Caveat, fontWeight = FontWeight.SemiBold,
                     fontSize = (27 * scale).sp, color = Color.White.copy(alpha = 0.95f),
                 ),
-                painterScale = 0.62f * scale,
+                painterScale = 0.55f * scale,
                 maxWidth = maxWidth - (190 * scale).toInt(),
+                strokeWeight = 0.10f,
+                msPerGlyph = 150,
+                minMs = 3_000,
+                maxMs = 10_000,
             )
         }
     }

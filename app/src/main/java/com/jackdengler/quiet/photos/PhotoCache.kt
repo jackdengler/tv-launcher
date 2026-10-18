@@ -12,6 +12,8 @@ class PhotoCache(context: Context) {
 
     data class Entry(val file: String, val url: String, val tags: Set<String>, val credit: String = "")
 
+    fun indexModified(): Long = index.lastModified()
+
     fun entries(): List<PhotoSource> = read().mapNotNull { e ->
         File(dir, e.file).takeIf { it.exists() }?.let { PhotoSource.Cached(it, e.tags, e.credit) }
     }

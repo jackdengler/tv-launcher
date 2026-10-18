@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
@@ -32,9 +33,12 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Text the painter maintains. When [text] changes while the home screen is in front, only the
- * part after the unchanged prefix is scrubbed out and brush-painted back in; otherwise it just
- * switches. The first value appears as-is.
+ * Text the brush maintains. When [text] changes while the home screen is in front, everything
+ * after the unchanged prefix fades out and the brush traces the new letters' outlines, the paint
+ * appearing exactly in the letter shapes. Otherwise it just switches.
+ *
+ * [strokeWeight] is the font's stroke thickness as a fraction of its size; [msPerGlyph] sets the
+ * pace (clamped by [minMs]/[maxMs]).
  */
 @Composable
 fun PaintedText(
@@ -43,6 +47,10 @@ fun PaintedText(
     modifier: Modifier = Modifier,
     painterScale: Float = 1f,
     maxWidth: Int? = null,
+    strokeWeight: Float = 0.14f,
+    msPerGlyph: Int = 1_000,
+    minMs: Int = 1_800,
+    maxMs: Int = 9_000,
 ) {
     val painter = LocalPainter.current
     val measurer = rememberTextMeasurer()
@@ -53,6 +61,7 @@ fun PaintedText(
     var shown by remember { mutableStateOf(text) }
     var incoming by remember { mutableStateOf<String?>(null) }
     var job by remember { mutableStateOf<PaintJob?>(null) }
+    var split by remember { mutableStateOf(0f) }
     val origin = remember { FloatArray(2) }
 
     val old = layout(shown)
@@ -65,17 +74,28 @@ fun PaintedText(
             return@LaunchedEffect
         }
         val next = layout(text)
-        val prefix = commonPrefix(shown, text).coerceAtMost(minOf(old.getLineEnd(0, true), next.getLineEnd(0, true)))
-        val split = if (prefix == 0) 0f else next.getHorizontalPosition(prefix, true)
-        val pad = style.fontSize.value * 0.08f
-        val width = maxOf(old.size.width, next.size.width).toFloat()
-        val region = Rect(split - pad, 0f, width + pad, maxOf(old.size.height, next.size.height).toFloat())
-        val j = PaintJob({ Offset(origin[0], origin[1]) }, region, painterScale, erase = shown.isNotEmpty())
+        val end = next.getLineEnd(0, true)
+        val prefix = commonPrefix(shown, text).coerceAtMost(minOf(old.getLineEnd(0, true), end))
+        if (prefix >= end) {
+            shown = text
+            return@LaunchedEffect
+        }
+        val fontPx = with(density) { style.fontSize.toPx() }
+        val route = BrushRoute.fromGlyphs(next.getPathForRange(prefix, end))
+        val glyphs = text.substring(prefix, end).count { !it.isWhitespace() }
+        val j = PaintJob(
+            origin = { Offset(origin[0], origin[1]) },
+            route = route,
+            stroke = fontPx * strokeWeight,
+            scale = painterScale,
+            durationMs = (glyphs * msPerGlyph).coerceIn(minMs, maxMs),
+        )
+        split = if (prefix == 0) 0f else next.getHorizontalPosition(prefix, true)
         incoming = text
         job = j
         try {
             painter.submit(j)
-            withTimeoutOrNull(15_000) { j.done.await() }
+            withTimeoutOrNull(30_000) { j.done.await() }
         } finally {
             j.cancelled = true
             shown = text
@@ -96,24 +116,22 @@ fun PaintedText(
             paint(old)
             return@Canvas
         }
-        val split = j.region.left + style.fontSize.value * 0.08f
+        // Unchanged part stays put.
         clipRect(right = split) { paint(old) }
+        // Old ending fades and smears down as the brush arrives.
         if (j.eraseProgress < 1f) {
-            layer {
-                clipRect(left = split) { paint(old) }
-                drawPath(
-                    partialPath(j.strokes.reversed(), j.eraseProgress), Color.Black,
-                    style = Stroke(j.rowHeight * 1.4f, cap = StrokeCap.Round, join = StrokeJoin.Round),
-                    blendMode = BlendMode.DstOut,
-                )
+            val e = j.eraseProgress
+            clipRect(left = split) {
+                translate(top = e * 10f) { paint(old, alpha = 1f - e) }
             }
         }
+        // New letters appear wherever the brush has traced.
         if (j.paintProgress > 0f) {
             layer {
-                clipRect(left = split) { paint(new) }
+                clipRect(left = split - 2f) { paint(new) }
                 drawPath(
-                    partialPath(j.strokes, j.paintProgress), Color.Black,
-                    style = Stroke(j.rowHeight * 1.4f, cap = StrokeCap.Round, join = StrokeJoin.Round),
+                    j.route.mask(j.paintProgress), Color.Black,
+                    style = Stroke(j.stroke * 1.6f, cap = StrokeCap.Round, join = StrokeJoin.Round),
                     blendMode = BlendMode.DstIn,
                 )
             }
@@ -135,4 +153,4 @@ private inline fun DrawScope.layer(block: DrawScope.() -> Unit) {
     canvas.restore()
 }
 
-private fun DrawScope.paint(layout: TextLayoutResult) = drawText(layout, topLeft = Offset.Zero)
+private fun DrawScope.paint(layout: TextLayoutResult, alpha: Float = 1f) = drawText(layout, topLeft = Offset.Zero, alpha = alpha)

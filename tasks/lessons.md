@@ -6,3 +6,6 @@
   alone. Symptom: the overlay flashed for a moment and then disappeared.
 - **Ship diagnostics the user can read on the device.** There's no adb or logcat here, so every
   background feature needs a visible status line, such as "Overlay status" in settings.
+- **Compose text API names:** use `TextLayoutResult.getLineEnd(line, visibleEnd)`. There is no
+  `lineEnd`. When the local machine can't compile, check unfamiliar API names against the
+  library's public surface before pushing.

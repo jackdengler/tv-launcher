@@ -86,7 +86,7 @@ The workflow publishes `quiet.apk` to the `latest` release, so every green phase
 ## Phase 12 — The painter
 - [x] Hand-lettered clock (Caveat Brush) and headlines (Caveat)
 - [x] Painter on a rope scrubs out changed digits / old headline and brush-paints the new text (zigzag strokes, drips)
-- [ ] Push → CI green
+- [x] Push → CI green
 
 ## Review
 

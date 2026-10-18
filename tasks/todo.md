@@ -103,7 +103,8 @@ The workflow publishes `quiet.apk` to the `latest` release, so every green phase
 - [x] Shows only while placed parlays are open and the card is live (ESPN), or a result was marked in the app in the last 3 h, or Always
 - [x] Settings rows + "Parlay overlay status" line; INSTALL.md and SPEC.md notes
 - [x] JVM unit check of parsing/matching/math (real data.json + a mock ESPN card)
-- [ ] Push → CI green
+- [x] Push → CI green (build 31, branch `claude/ufc-parlay-overlay`)
+- Not verified yet: ESPN UFC field names (the sandbox can't reach ESPN; parsing is defensive and the status line says "ESPN unavailable" if it fails); look on the TV
 
 ## Review
 

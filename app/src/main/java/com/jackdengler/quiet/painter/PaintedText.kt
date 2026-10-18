@@ -65,7 +65,7 @@ fun PaintedText(
             return@LaunchedEffect
         }
         val next = layout(text)
-        val prefix = commonPrefix(shown, text).coerceAtMost(minOf(old.lineEnd(0, true), next.lineEnd(0, true)))
+        val prefix = commonPrefix(shown, text).coerceAtMost(minOf(old.getLineEnd(0, true), next.getLineEnd(0, true)))
         val split = if (prefix == 0) 0f else next.getHorizontalPosition(prefix, true)
         val pad = style.fontSize.value * 0.08f
         val width = maxOf(old.size.width, next.size.width).toFloat()

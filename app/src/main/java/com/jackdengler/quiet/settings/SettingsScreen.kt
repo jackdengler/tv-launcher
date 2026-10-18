@@ -130,6 +130,15 @@ fun SettingsScreen(prefs: Prefs, onBack: () -> Unit, onHomeSetup: () -> Unit) {
                 }
             }
             item {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                SettingRow(
+                    "Sign in to ESPN",
+                    if (prefs.espnS2.isBlank()) "Private leagues: sign in once to save access" else "Signed in",
+                ) {
+                    context.startActivity(android.content.Intent(context, EspnLoginActivity::class.java))
+                }
+            }
+            item {
                 SettingRow("espn_s2 cookie", if (prefs.espnS2.isBlank()) "Only for private leagues" else "Saved") {
                     editor = Editor("espn_s2", "Paste from your phone using the Google Home app's remote keyboard.", prefs.espnS2, secret = true) {
                         prefs.espnS2 = it

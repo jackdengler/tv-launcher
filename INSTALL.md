@@ -77,9 +77,8 @@ Open **All apps** and choose **Quiet settings**, the first tile:
 1. In Quiet settings, set **League ID** and **Team ID**. To find them, open your league on
    fantasy.espn.com in Safari. The address contains `leagueId=…` and, on your team page,
    `teamId=…`.
-2. **Private leagues only:** you also need the `espn_s2` and `SWID` cookies from a signed-in
-   desktop browser. With only an iPhone, the easiest way is to ask a league-mate on a computer.
-   Otherwise, make the league viewable to the public in its settings and skip this step.
+2. **Private leagues only:** choose **Sign in to ESPN** and log in on the TV (type with your
+   phone's remote keyboard). Quiet saves the access cookies itself and the page closes.
 3. Turn **Overlay** on. The score appears top-right over whatever you're watching during NFL
    game windows (Thu/Mon from 7 pm, Sun from noon), or all the time if **When to show** is set to
    Always. It needs the Home button service from step 3 to be on.

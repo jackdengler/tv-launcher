@@ -37,6 +37,7 @@ import com.jackdengler.quiet.takeover.QuietAccessibilityService
 import com.jackdengler.quiet.home.BackdropState
 import com.jackdengler.quiet.home.ForecastPanel
 import com.jackdengler.quiet.home.HomeScreen
+import com.jackdengler.quiet.home.Mood
 import com.jackdengler.quiet.home.NewsPanel
 import com.jackdengler.quiet.home.IDLE_FADE_MS
 import com.jackdengler.quiet.home.nightFilter
@@ -253,9 +254,16 @@ private fun PhotoRotation(backdrop: BackdropState, photos: PhotoRepository, pref
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             backdrop.resume(this)
             while (true) {
+                val now = System.currentTimeMillis()
+                val scene = if (prefs.santaMonica) {
+                    Sun.scene(Sun.SANTA_MONICA_LAT, Sun.SANTA_MONICA_LON, now)
+                } else {
+                    Sun.scene(prefs.latitude, prefs.longitude, now)
+                }
+                val sky = Sun.sky(weatherCode())
+                backdrop.mood = Mood(scene, sky)
                 val selection = if (prefs.santaMonica) {
-                    val now = System.currentTimeMillis()
-                    Selection.santaMonica(Sun.scene(Sun.SANTA_MONICA_LAT, Sun.SANTA_MONICA_LON, now), Sun.sky(weatherCode()))
+                    Selection.santaMonica(scene, sky)
                 } else {
                     Selection.timeOfDay(Calendar.getInstance().get(Calendar.HOUR_OF_DAY))
                 }

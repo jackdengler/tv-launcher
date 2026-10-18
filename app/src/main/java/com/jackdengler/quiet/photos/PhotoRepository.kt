@@ -36,7 +36,14 @@ sealed interface PhotoSource {
 }
 
 /** A decoded photo, ready to draw: full image, a tiny blurred copy for frosted tiles, and its accent. */
-class LoadedPhoto(val key: String, val image: ImageBitmap, val frost: ImageBitmap, val accent: Color, val credit: String = "")
+class LoadedPhoto(
+    val key: String,
+    val image: ImageBitmap,
+    val frost: ImageBitmap,
+    val accent: Color,
+    val credit: String = "",
+    val life: PhotoLife = PhotoLife.EMPTY,
+)
 
 enum class TimeSlot(val tag: String) {
     MORNING("morning"), DAY("day"), NIGHT("night");
@@ -69,10 +76,11 @@ class PhotoRepository(private val context: Context) {
             val full = decodeCover(source, SCREEN_W, SCREEN_H)
             val small = Bitmap.createScaledBitmap(full, FROST_W, FROST_H, true)
             val accent = accentOf(small)
+            val life = PhotoLife.analyze(small)
             val frost = small.boxBlur(FROST_RADIUS)
             full.prepareToDraw()
             frost.prepareToDraw()
-            LoadedPhoto(source.key, full.asImageBitmap(), frost.asImageBitmap(), accent, source.credit)
+            LoadedPhoto(source.key, full.asImageBitmap(), frost.asImageBitmap(), accent, source.credit, life)
         }.getOrNull()
     }
 

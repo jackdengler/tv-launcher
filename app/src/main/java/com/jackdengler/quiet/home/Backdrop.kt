@@ -72,6 +72,12 @@ class BackdropState {
     var screen = Size.Zero
         private set
 
+    /** Time of day and weather for the living effects. */
+    var mood by mutableStateOf(Mood(com.jackdengler.quiet.photos.Scene.DAY, com.jackdengler.quiet.photos.Sky.CLEAR))
+
+    /** Seconds since the backdrop started; drives the living effects. Read in draw only. */
+    internal val clock = androidx.compose.runtime.mutableFloatStateOf(0f)
+
     /** Night/ambient treatment for the photo (dim, desaturate). Read in draw. */
     var filter by mutableStateOf<ColorFilter?>(null)
 
@@ -128,6 +134,7 @@ class BackdropState {
                     colorFilter = filter,
                     filterQuality = FilterQuality.Low,
                 )
+                if (!frost) drawLife(layer.photo.life, mood, clock.floatValue, layer.alpha.value)
             }
         }
     }
@@ -149,6 +156,11 @@ fun nightFilter(t: Float): ColorFilter? {
 /** Full-screen photo with the two scrims: radial from the top-left, gradient at the bottom. */
 @Composable
 fun Backdrop(state: BackdropState, modifier: Modifier = Modifier, scrim: () -> Float = { 1f }, amber: () -> Float = { 0f }) {
+    // A frame clock for the living effects; it pauses whenever Quiet isn't visible.
+    androidx.compose.runtime.LaunchedEffect(state) {
+        val start = androidx.compose.runtime.withFrameNanos { it }
+        while (true) androidx.compose.runtime.withFrameNanos { state.clock.floatValue = (it - start) / 1e9f }
+    }
     Canvas(modifier.fillMaxSize()) {
         state.capture(size)
         with(state) { drawPhotos() }

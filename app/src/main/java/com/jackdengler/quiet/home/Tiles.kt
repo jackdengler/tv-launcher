@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.onFocusChanged
@@ -149,7 +150,7 @@ private fun rememberGlow(): ImageBitmap {
  * screen position, clipped to [shape], plus a [veil] tint.
  */
 fun Modifier.frost(backdrop: BackdropState, shape: androidx.compose.ui.graphics.Shape, veil: Color): Modifier =
-    androidx.compose.ui.composed {
+    composed {
         val origin = remember { FloatArray(2) }
         onGloballyPositioned { val p = it.positionInRoot(); origin[0] = p.x; origin[1] = p.y }
             .clip(shape)

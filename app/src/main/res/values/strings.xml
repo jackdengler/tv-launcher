@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Quiet</string>
+    <string name="a11y_label">Quiet Home</string>
+    <string name="a11y_description">Makes the Home button open Quiet: when the stock Google TV home screen appears, Quiet replaces it. Also draws the optional ESPN fantasy score overlay. Quiet reads only which app is in front, never screen content.</string>
 </resources>

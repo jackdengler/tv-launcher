@@ -133,15 +133,27 @@ class BackdropState {
     }
 }
 
+/** Night look: brightness ~0.5 and partial desaturation, scaled by [t] (0..1). */
+fun nightFilter(t: Float): ColorFilter? {
+    if (t <= 0f) return null
+    val m = android.graphics.ColorMatrix().apply { setSaturation(1f - 0.55f * t) }
+    val b = 1f - 0.5f * t
+    m.postConcat(android.graphics.ColorMatrix().apply { setScale(b, b, b, 1f) })
+    return ColorFilter.colorMatrix(androidx.compose.ui.graphics.ColorMatrix(m.array))
+}
+
 /** Full-screen photo with the two scrims: radial from the top-left, gradient at the bottom. */
 @Composable
-fun Backdrop(state: BackdropState, modifier: Modifier = Modifier, scrim: Float = 1f) {
+fun Backdrop(state: BackdropState, modifier: Modifier = Modifier, scrim: () -> Float = { 1f }, amber: () -> Float = { 0f }) {
     Canvas(modifier.fillMaxSize()) {
         state.capture(size)
         with(state) { drawPhotos() }
+        val warm = amber()
+        if (warm > 0f) drawRect(Color(0xFFFF9440).copy(alpha = 0.16f * warm))
+        val dark = scrim()
         drawRect(
             Brush.radialGradient(
-                0f to Color.Black.copy(alpha = 0.55f * scrim),
+                0f to Color.Black.copy(alpha = 0.55f * dark),
                 1f to Color.Transparent,
                 center = Offset.Zero,
                 radius = size.width * 0.62f,
@@ -150,7 +162,7 @@ fun Backdrop(state: BackdropState, modifier: Modifier = Modifier, scrim: Float =
         drawRect(
             Brush.verticalGradient(
                 0f to Color.Transparent,
-                1f to Color.Black.copy(alpha = 0.62f * scrim),
+                1f to Color.Black.copy(alpha = 0.62f * dark),
                 startY = size.height * 0.5f,
                 endY = size.height,
             ),

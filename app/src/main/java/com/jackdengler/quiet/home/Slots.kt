@@ -18,3 +18,9 @@ val DefaultSlots: List<Slot> = listOf(
     Slot.AllApps,
     Slot.Settings,
 )
+
+/** The home slots with any long-press overrides from settings applied (app slots only). */
+fun effectiveSlots(override: (Int) -> String?): List<Slot> = DefaultSlots.mapIndexed { i, slot ->
+    val pkg = override(i)
+    if (slot is Slot.App && pkg != null) Slot.App(pkg, listOf(pkg)) else slot
+}

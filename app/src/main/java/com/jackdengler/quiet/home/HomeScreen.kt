@@ -1,7 +1,11 @@
 package com.jackdengler.quiet.home
 
 import android.text.format.DateFormat
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
@@ -62,6 +66,10 @@ import java.util.Locale
 
 val TextShadow = Shadow(Color.Black.copy(alpha = 0.35f), blurRadius = 18f)
 
+/**
+ * The home screen. [idle] and [night] are 0..1 animation fractions read only in the
+ * layer/draw phase, so the transitions don't recompose the tree each frame.
+ */
 @Composable
 fun HomeScreen(
     backdrop: BackdropState,
@@ -69,24 +77,49 @@ fun HomeScreen(
     focusSignal: Int,
     onAllApps: () -> Unit,
     ambient: Ambient,
+    isNight: Boolean,
+    isIdle: Boolean,
+    idle: () -> Float,
+    night: () -> Float,
     onLongPressSlot: (Int) -> Unit = {},
     slots: List<Slot> = DefaultSlots,
 ) {
     val now by rememberMinuteClock()
+    val soft = { 1f - 0.28f * night() }
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.padding(start = 96.dp, top = 56.dp)) {
+        Column(Modifier.padding(start = 96.dp, top = 56.dp).graphicsLayer { alpha = (1f - idle()) * soft() }) {
             Clock(now)
-            DateLine(now) { WeatherInline(ambient.weather, night = false) }
+            DateLine(now) { WeatherInline(ambient.weather, isNight) }
             Spacer(Modifier.height(26.dp))
             HeadlinePill(backdrop, ambient.headline)
         }
-        PhotoDots(backdrop, Modifier.align(Alignment.TopEnd).padding(top = 84.dp, end = 96.dp))
-        TileGrid(
-            backdrop, apps, slots, focusSignal, onAllApps, onLongPressSlot,
-            Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp),
+        PhotoDots(
+            backdrop,
+            Modifier.align(Alignment.TopEnd).padding(top = 84.dp, end = 96.dp).graphicsLayer { alpha = (1f - idle()) * soft() },
         )
+        TileGrid(
+            backdrop, apps, slots, focusSignal, onAllApps, onLongPressSlot, night,
+            Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp)
+                .graphicsLayer { alpha = (1f - idle()) * (1f - 0.15f * night()) },
+        )
+        // Idle: the photo takes over; a compact clock, date, weather and headline sit bottom-left.
+        AnimatedVisibility(
+            visible = isIdle,
+            enter = fadeIn(tween(IDLE_FADE_MS)),
+            exit = fadeOut(tween(IDLE_FADE_MS / 2)),
+            modifier = Modifier.align(Alignment.BottomStart).padding(start = 96.dp, bottom = 80.dp),
+        ) {
+            Column(Modifier.graphicsLayer { alpha = soft() }) {
+                Clock(now, size = 88)
+                DateLine(now, size = 26) { WeatherInline(ambient.weather, isNight, size = 24) }
+                Spacer(Modifier.height(18.dp))
+                HeadlinePill(backdrop, ambient.headline, maxWidth = 900, scale = 0.85f)
+            }
+        }
     }
 }
+
+const val IDLE_FADE_MS = 1200
 
 /** Wall-clock millis, updated on each minute boundary. */
 @Composable
@@ -232,6 +265,7 @@ private fun TileGrid(
     focusSignal: Int,
     onAllApps: () -> Unit,
     onLongPressSlot: (Int) -> Unit,
+    night: () -> Float,
     modifier: Modifier,
 ) {
     val version by apps.version.collectAsState()
@@ -249,7 +283,7 @@ private fun TileGrid(
                 for (i in row) {
                     val slot = slots[i]
                     val tileModifier = if (i == 0) Modifier.focusRequester(first) else Modifier
-                    SlotTile(backdrop, apps, slot, installed, tileModifier, onAllApps, { onLongPressSlot(i) }) { name ->
+                    SlotTile(backdrop, apps, slot, installed, tileModifier, onAllApps, { onLongPressSlot(i) }, night) { name ->
                         label = name
                     }
                 }
@@ -281,6 +315,7 @@ private fun SlotTile(
     modifier: Modifier,
     onAllApps: () -> Unit,
     onLongPress: () -> Unit,
+    night: () -> Float,
     onLabel: (String) -> Unit,
 ) {
     when (slot) {
@@ -294,8 +329,9 @@ private fun SlotTile(
                 backdrop,
                 onClick = { if (entry != null) apps.launch(entry) else apps.openStore(slot.packages.first()) },
                 modifier = modifier,
-                onLongClick = onLongPress,
+                onLongClick = onLongPress,  // swap in a different app
                 onFocus = { if (it) onLabel(entry?.label ?: "${slot.label} · not installed") },
+                soft = night,
             ) {
                 if (icon != null) TileImage(icon) else Text(
                     slot.label,
@@ -305,11 +341,11 @@ private fun SlotTile(
         }
         Slot.AllApps -> FrostTile(
             backdrop, onClick = onAllApps, modifier = modifier,
-            onFocus = { if (it) onLabel("All apps") },
+            onFocus = { if (it) onLabel("All apps") }, soft = night,
         ) { TileIcon(painterResource(R.drawable.ic_apps), it) }
         Slot.Settings -> FrostTile(
             backdrop, onClick = apps::openSystemSettings, modifier = modifier,
-            onFocus = { if (it) onLabel("Settings") },
+            onFocus = { if (it) onLabel("Settings") }, soft = night,
         ) { TileIcon(painterResource(R.drawable.ic_settings), it) }
     }
 }

@@ -1,0 +1,53 @@
+{
+  "photos": [
+    {
+      "file": "dawn_peaks.jpg",
+      "tags": [
+        "morning"
+      ]
+    },
+    {
+      "file": "misty_lake.jpg",
+      "tags": [
+        "morning"
+      ]
+    },
+    {
+      "file": "desert_dunes.jpg",
+      "tags": [
+        "day"
+      ]
+    },
+    {
+      "file": "alpine_day.jpg",
+      "tags": [
+        "day"
+      ]
+    },
+    {
+      "file": "coastal_bay.jpg",
+      "tags": [
+        "day"
+      ]
+    },
+    {
+      "file": "sunset_hills.jpg",
+      "tags": [
+        "night",
+        "day"
+      ]
+    },
+    {
+      "file": "starry_peaks.jpg",
+      "tags": [
+        "night"
+      ]
+    },
+    {
+      "file": "moonlit_sea.jpg",
+      "tags": [
+        "night"
+      ]
+    }
+  ]
+}

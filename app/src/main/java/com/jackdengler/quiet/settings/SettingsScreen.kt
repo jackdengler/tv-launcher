@@ -114,6 +114,20 @@ fun SettingsScreen(prefs: Prefs, onBack: () -> Unit, onHomeSetup: () -> Unit) {
                 SettingRow("Overlay", if (prefs.espnEnabled) "On" else "Off") { prefs.espnEnabled = !prefs.espnEnabled }
             }
             item {
+                // The service updates this in the background; re-read it every few seconds.
+                var tick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        kotlinx.coroutines.delay(3_000)
+                        tick++
+                    }
+                }
+                tick
+                val status = if (!prefs.espnEnabled) "Off" else prefs.cached(com.jackdengler.quiet.data.Espn.STATUS)
+                    ?: "No update yet. Needs the Quiet Home accessibility service on"
+                SettingRow("Overlay status", status) { }
+            }
+            item {
                 SettingRow("When to show", if (prefs.espnAlways) "Always" else "During NFL game windows") {
                     prefs.espnAlways = !prefs.espnAlways
                 }

@@ -54,6 +54,10 @@ class QuietAccessibilityService : AccessibilityService() {
         if (pkg in stockLaunchers) bringQuietForward()
         // Ignore transient system windows (IME, system UI) when tracking what's in front.
         if (pkg == "com.android.systemui" || pkg.contains("inputmethod")) return
+        // Our own events only count when they come from one of Quiet's activities. The overlay
+        // window and toasts belong to this package too, and showing the overlay must not make
+        // the service think Quiet is in front (that hid it again right after it appeared).
+        if (pkg == packageName && event.className?.toString()?.startsWith("$packageName.") != true) return
         val inFront = pkg == packageName || pkg in stockLaunchers
         if (inFront != quietInFront) {
             quietInFront = inFront
@@ -82,12 +86,24 @@ class QuietAccessibilityService : AccessibilityService() {
                 val now = Calendar.getInstance()
                 val screenOn = getSystemService(PowerManager::class.java).isInteractive
                 if (screenOn && !quietInFront && (prefs.espnAlways || Espn.inGameWindow(now))) {
-                    val score = withContext(Dispatchers.IO) {
-                        runCatching { Espn.fetch(prefs.espnLeague, prefs.espnTeam, prefs.espnS2, prefs.espnSwid, now) }.getOrNull()
+                    val result = withContext(Dispatchers.IO) {
+                        runCatching { Espn.fetch(prefs.espnLeague, prefs.espnTeam, prefs.espnS2, prefs.espnSwid, now) }
                     }
-                    if (score != null && !quietInFront) overlay?.show(score)
+                    val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(now.time)
+                    result.onSuccess { score ->
+                        prefs.putCached(Espn.STATUS, "OK at $time: ${score.headline}")
+                        if (!quietInFront) overlay?.show(score)
+                    }.onFailure {
+                        prefs.putCached(Espn.STATUS, "Failed at $time: ${it.message ?: it.javaClass.simpleName}")
+                    }
                 } else {
                     overlay?.hide()
+                    val why = when {
+                        !screenOn -> "Screen off"
+                        quietInFront -> "Hidden while Quiet is on screen"
+                        else -> "Outside game windows (Thu/Mon 7 pm, Sun noon). Set When to show: Always to test"
+                    }
+                    prefs.putCached(Espn.STATUS, why)
                 }
                 delay(OVERLAY_REFRESH_MS)
             }

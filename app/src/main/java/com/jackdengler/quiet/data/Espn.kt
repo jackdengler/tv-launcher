@@ -28,14 +28,25 @@ data class FantasyScore(
 
 /** ESPN's unofficial fantasy football API. Blocking; call from Dispatchers.IO. */
 object Espn {
-    fun fetch(league: String, team: String, s2: String, swid: String, now: Calendar = Calendar.getInstance()): FantasyScore? {
-        if (league.isBlank() || team.isBlank()) return null
+    fun fetch(league: String, team: String, s2: String, swid: String, now: Calendar = Calendar.getInstance()): FantasyScore {
+        require(league.isNotBlank() && team.isNotBlank()) { "League ID and Team ID are required" }
+        val teamId = team.toIntOrNull() ?: error("Team ID must be a number")
         val url = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/${season(now)}" +
             "/segments/0/leagues/$league?view=mMatchupScore&view=mTeam&view=mScoreboard"
         val headers = if (s2.isNotBlank() && swid.isNotBlank()) mapOf("Cookie" to "espn_s2=$s2; SWID=$swid") else emptyMap()
-        val body = Http.get(url, headers = headers).body ?: return null
-        return parse(JSONObject(body), team.toInt())
+        val response = Http.get(url, headers = headers)
+        val body = response.body ?: error(
+            when (response.code) {
+                401, 403 -> "ESPN says private league (${response.code}). Use Sign in to ESPN"
+                404 -> "League not found (404). Check League ID"
+                else -> "ESPN HTTP ${response.code}"
+            },
+        )
+        return parse(JSONObject(body), teamId) ?: error("Team $teamId has no matchup this week. Check Team ID")
     }
+
+    /** Cache key for the overlay's last status line, shown in settings. */
+    const val STATUS = "espn_status"
 
     /** The NFL season is named for the year it starts; Jan–Feb games belong to last year's season. */
     fun season(now: Calendar): Int = now.get(Calendar.YEAR) - if (now.get(Calendar.MONTH) < Calendar.MARCH) 1 else 0

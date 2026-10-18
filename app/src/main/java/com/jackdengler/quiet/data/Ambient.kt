@@ -26,6 +26,9 @@ class Ambient(private val prefs: Prefs) {
     /** Live (and, during game windows, final) NFL games, shown in the pill between headlines. */
     private var scores by mutableStateOf<List<NflGame>>(emptyList())
 
+    /** Every current headline (for the news panel). */
+    val headlines: List<Headline> get() = news?.items.orEmpty()
+
     val headline: Headline?
         get() {
             val items = news?.items.orEmpty()
@@ -40,7 +43,7 @@ class Ambient(private val prefs: Prefs) {
     suspend fun run() = coroutineScope {
         delay(FIRST_FETCH_DELAY_MS)
         launch {
-            refreshLoop(WEATHER_MS, { weather?.takeIf { it.key == prefs.weatherKey }?.fetchedAt }) {
+            refreshLoop(WEATHER_MS, { weather?.takeIf { it.key == prefs.weatherKey && it.hours.isNotEmpty() }?.fetchedAt }) {
                 val key = prefs.weatherKey
                 OpenMeteo.current(prefs.latitude, prefs.longitude, prefs.fahrenheit)?.copy(key = key)?.also {
                     weather = it

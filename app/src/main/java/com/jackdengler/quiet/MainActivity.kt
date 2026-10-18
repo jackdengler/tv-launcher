@@ -35,7 +35,9 @@ import com.jackdengler.quiet.home.effectiveSlots
 import com.jackdengler.quiet.takeover.OnboardingScreen
 import com.jackdengler.quiet.takeover.QuietAccessibilityService
 import com.jackdengler.quiet.home.BackdropState
+import com.jackdengler.quiet.home.ForecastPanel
 import com.jackdengler.quiet.home.HomeScreen
+import com.jackdengler.quiet.home.NewsPanel
 import com.jackdengler.quiet.home.IDLE_FADE_MS
 import com.jackdengler.quiet.home.nightFilter
 import com.jackdengler.quiet.home.rememberMinuteClock
@@ -57,7 +59,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
-enum class Screen { Home, AllApps, Settings, Onboarding, PickApp }
+enum class Screen { Home, AllApps, Settings, Onboarding, PickApp, News, Forecast }
 
 class MainActivity : ComponentActivity() {
     private var screen by mutableStateOf(Screen.Home)
@@ -191,7 +193,11 @@ private fun QuietRoot(
                         }
                     },
                     slots = remember(settingsVersion) { effectiveSlots(app.prefs::slotPackage) },
+                    onNews = { navigate(Screen.News) },
+                    onForecast = { navigate(Screen.Forecast) },
                 )
+                Screen.News -> NewsPanel(ambient.headlines) { navigate(Screen.Home) }
+                Screen.Forecast -> ForecastPanel(ambient.weather, isNight) { navigate(Screen.Home) }
                 Screen.PickApp -> AllAppsScreen(
                     app.apps,
                     onBack = { navigate(Screen.Home) },

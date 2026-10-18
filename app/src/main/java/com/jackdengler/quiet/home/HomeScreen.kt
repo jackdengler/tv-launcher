@@ -11,6 +11,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.focus.onFocusChanged
+import com.jackdengler.quiet.ui.tvClickable
 import androidx.compose.ui.text.style.TextOverflow
 import com.jackdengler.quiet.data.Ambient
 import com.jackdengler.quiet.data.Headline
@@ -83,15 +85,17 @@ fun HomeScreen(
     night: () -> Float,
     onLongPressSlot: (Int) -> Unit = {},
     slots: List<Slot> = DefaultSlots,
+    onNews: () -> Unit = {},
+    onForecast: () -> Unit = {},
 ) {
     val now by rememberMinuteClock()
     val soft = { 1f - 0.28f * night() }
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.padding(start = 96.dp, top = 56.dp).graphicsLayer { alpha = (1f - idle()) * soft() }) {
             Clock(now)
-            DateLine(now) { WeatherInline(ambient.weather, isNight) }
+            DateLine(now) { FocusableWeather(ambient.weather, isNight, onForecast) }
             Spacer(Modifier.height(26.dp))
-            HeadlinePill(backdrop, ambient.headline)
+            HeadlinePill(backdrop, ambient.headline, onClick = onNews)
         }
         PhotoDots(
             backdrop,
@@ -208,17 +212,47 @@ fun WeatherInline(weather: Weather?, night: Boolean, size: Int = 30) {
     }
 }
 
+/** The inline weather, focusable: OK opens the forecast card. */
+@Composable
+private fun FocusableWeather(weather: Weather?, night: Boolean, onClick: () -> Unit) {
+    weather ?: return
+    val accent by LocalAccent.current
+    var focused by remember { mutableStateOf(false) }
+    Box(
+        Modifier
+            .padding(start = 8.dp)
+            .border(2.dp, if (focused) accent else Color.Transparent, CircleShape)
+            .onFocusChanged { focused = it.isFocused }
+            .tvClickable(onClick)
+            .padding(end = 16.dp, top = 2.dp, bottom = 2.dp),
+    ) { WeatherInline(weather, night) }
+}
+
 /** One headline in a small frosted pill with the feed's name as a tag; crossfades on change. */
 @Composable
-fun HeadlinePill(backdrop: BackdropState, headline: Headline?, maxWidth: Int = 980, scale: Float = 1f) {
+fun HeadlinePill(
+    backdrop: BackdropState,
+    headline: Headline?,
+    maxWidth: Int = 980,
+    scale: Float = 1f,
+    onClick: (() -> Unit)? = null,
+) {
     val accent by LocalAccent.current
+    var focused by remember { mutableStateOf(false) }
+    // Focus lives on this stable wrapper so it survives the crossfade between headlines.
+    val focusModifier = if (onClick != null && headline != null) {
+        Modifier.onFocusChanged { focused = it.isFocused }.tvClickable(onClick)
+    } else {
+        Modifier
+    }
+    Box(focusModifier) {
     Crossfade(headline, animationSpec = tween(700), label = "headline") { h ->
         if (h == null) return@Crossfade
         Row(
             Modifier
                 .widthIn(max = maxWidth.dp)
                 .frost(backdrop, CircleShape, Color.Black.copy(alpha = 0.22f))
-                .border(1.dp, Color.White.copy(alpha = 0.14f), CircleShape)
+                .border(if (focused) 2.dp else 1.dp, if (focused) accent else Color.White.copy(alpha = 0.14f), CircleShape)
                 .padding(horizontal = (20 * scale).dp, vertical = (10 * scale).dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -241,6 +275,7 @@ fun HeadlinePill(backdrop: BackdropState, headline: Headline?, maxWidth: Int = 9
                 ),
             )
         }
+    }
     }
 }
 

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- A crescent over a horizon line. -->
+    <path android:fillColor="#F2EDE4"
+        android:pathData="M60,34a20,20 0,1 0,14 34a16,16 0,1 1,-14 -34z" />
+    <path android:fillColor="#F2EDE4" android:pathData="M30,74h48v3h-48z" />
+</vector>

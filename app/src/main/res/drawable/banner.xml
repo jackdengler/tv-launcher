@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 320x180 TV banner: dark slate with a crescent over a horizon line. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="180dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:fillColor="#26313F" android:pathData="M0,0h320v180h-320z" />
+    <path android:fillColor="#F2EDE4"
+        android:pathData="M166,52a26,26 0,1 0,18 44a21,21 0,1 1,-18 -44z" />
+    <path android:fillColor="#F2EDE4" android:pathData="M120,118h80v3h-80z" />
+</vector>

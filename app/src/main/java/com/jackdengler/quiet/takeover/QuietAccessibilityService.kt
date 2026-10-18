@@ -4,31 +4,95 @@ import android.accessibilityservice.AccessibilityService
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
 import android.view.accessibility.AccessibilityEvent
 import com.jackdengler.quiet.MainActivity
+import com.jackdengler.quiet.QuietApp
+import com.jackdengler.quiet.data.Espn
+import com.jackdengler.quiet.data.Prefs
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.Calendar
 
 /**
  * Home-button takeover without adb: when a stock launcher window comes to the front, start
- * Quiet on top of it (the approach Projectivy uses). Phase 6 adds the ESPN overlay here.
+ * Quiet on top of it (the approach Projectivy uses). Also hosts the ESPN fantasy overlay.
  */
 class QuietAccessibilityService : AccessibilityService() {
 
     private var stockLaunchers: Set<String> = emptySet()
     private var lastLaunch = 0L
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var overlay: FantasyOverlay? = null
+    private var overlayJob: Job? = null
+    private var quietInFront = false
+
     override fun onServiceConnected() {
         stockLaunchers = findStockLaunchers()
+        overlay = FantasyOverlay(this)
+        val prefs = (application as QuietApp).prefs
+        // Restart the overlay loop whenever settings change; it does nothing while disabled.
+        scope.launch {
+            prefs.changes.collectLatest { restartOverlay(prefs) }
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = event.packageName?.toString() ?: return
         if (pkg in stockLaunchers) bringQuietForward()
+        // Ignore transient system windows (IME, system UI) when tracking what's in front.
+        if (pkg == "com.android.systemui" || pkg.contains("inputmethod")) return
+        val inFront = pkg == packageName || pkg in stockLaunchers
+        if (inFront != quietInFront) {
+            quietInFront = inFront
+            if (inFront) overlay?.hide() else (application as? QuietApp)?.prefs?.let(::restartOverlay)
+        }
     }
 
     override fun onInterrupt() = Unit
+
+    override fun onDestroy() {
+        scope.cancel()
+        overlay?.destroy()
+        super.onDestroy()
+    }
+
+    /**
+     * While enabled: once a minute, check the game window; when inside it (or "always") and Quiet
+     * isn't in front, fetch the score and show it. No network outside the windows.
+     */
+    private fun restartOverlay(prefs: Prefs) {
+        overlayJob?.cancel()
+        overlay?.hide()
+        if (!prefs.espnEnabled || prefs.espnLeague.isBlank() || prefs.espnTeam.isBlank()) return
+        overlayJob = scope.launch {
+            while (isActive) {
+                val now = Calendar.getInstance()
+                val screenOn = getSystemService(PowerManager::class.java).isInteractive
+                if (screenOn && !quietInFront && (prefs.espnAlways || Espn.inGameWindow(now))) {
+                    val score = withContext(Dispatchers.IO) {
+                        runCatching { Espn.fetch(prefs.espnLeague, prefs.espnTeam, prefs.espnS2, prefs.espnSwid, now) }.getOrNull()
+                    }
+                    if (score != null && !quietInFront) overlay?.show(score)
+                } else {
+                    overlay?.hide()
+                }
+                delay(OVERLAY_REFRESH_MS)
+            }
+        }
+    }
 
     private fun bringQuietForward() {
         val now = SystemClock.uptimeMillis()
@@ -50,6 +114,7 @@ class QuietAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val DEBOUNCE_MS = 400L
+        private const val OVERLAY_REFRESH_MS = 60_000L
 
         private val KNOWN_LAUNCHERS = setOf(
             "com.google.android.apps.tv.launcherx", // Google TV

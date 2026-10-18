@@ -42,14 +42,28 @@ immediately. This is the same approach Projectivy Launcher uses.
    confirm.
 3. Press **Back** to return to Quiet. From now on, pressing Home opens Quiet.
 
-If a TV software update turns the service off, Quiet shows the setup screen again.
+If the switch is greyed out or says "Restricted setting", Android is blocking accessibility for
+apps installed outside the Play Store. Go to **Settings → Apps → Quiet**, choose **Allow
+restricted settings** (on TVs that show it), and try again.
+
+To see the setup screen again later, go to **All apps → Quiet settings → Home button**.
+
+Expect a short flash: Google TV's own home screen appears for a moment before Quiet replaces it.
+That can't be avoided without a computer.
 
 ## 4. Updating
 
 Repeat step 2 with the same URL. The new APK installs over the old one and keeps your settings,
 because every build is signed with the same key, which is committed in this repo.
 
-## 5. Settings inside Quiet
+## 5. Everyday use
+
+- **Long-press OK on any of the first six tiles** to swap in a different app.
+- After 3 minutes without a button press, the tiles fade out and the photo fills the screen.
+  Any button brings them back.
+- From 10 pm to 6 am the screen dims and warms automatically.
+
+## 5b. Settings inside Quiet
 
 Open **All apps** and choose **Quiet settings**, the first tile:
 
@@ -57,6 +71,18 @@ Open **All apps** and choose **Quiet settings**, the first tile:
 - News RSS feed URL (BBC News by default)
 - ESPN fantasy overlay: league ID, team ID, and the `espn_s2` and `SWID` cookies if your league
   is private
+
+### ESPN fantasy overlay
+
+1. In Quiet settings, set **League ID** and **Team ID**. To find them, open your league on
+   fantasy.espn.com in Safari. The address contains `leagueId=…` and, on your team page,
+   `teamId=…`.
+2. **Private leagues only:** you also need the `espn_s2` and `SWID` cookies from a signed-in
+   desktop browser. With only an iPhone, the easiest way is to ask a league-mate on a computer.
+   Otherwise, make the league viewable to the public in its settings and skip this step.
+3. Turn **Overlay** on. The score appears top-right over whatever you're watching during NFL
+   game windows (Thu/Mon from 7 pm, Sun from noon), or all the time if **When to show** is set to
+   Always. It needs the Home button service from step 3 to be on.
 
 ## 6. Adding your own photos
 

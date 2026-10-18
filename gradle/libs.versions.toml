@@ -10,6 +10,7 @@ work = "2.10.0"
 palette = "1.0.0"
 profileinstaller = "1.4.1"
 zxing = "3.5.3"
+androidsvg = "1.4"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -24,6 +25,8 @@ androidx-palette = { module = "androidx.palette:palette-ktx", version.ref = "pal
 androidx-profileinstaller = { module = "androidx.profileinstaller:profileinstaller", version.ref = "profileinstaller" }
 # QR codes so links open on the phone (encoder only; R8 strips the rest).
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
+# ESPN's default fantasy team pictures are SVG; Android can't decode SVG on its own.
+androidsvg = { module = "com.caverock:androidsvg-aar", version.ref = "androidsvg" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

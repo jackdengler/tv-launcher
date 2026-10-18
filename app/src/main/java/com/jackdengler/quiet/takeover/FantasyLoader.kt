@@ -31,13 +31,13 @@ object FantasyLoader {
         for ((n, league, team) in prefs.espnLeagues) {
             if (onlyShown && !(if (n == 1) prefs.espnShow1 else prefs.espnShow2)) continue
             runCatching { Espn.fetch(league, team, prefs.espnS2, prefs.espnSwid, now, states) }
-                .onSuccess { score -> cards += n to card(prefs, n, league, team, score) }
+                .onSuccess { score -> cards += n to card(prefs, n, league, team, score, errors) }
                 .onFailure { errors += "League $n: ${it.message ?: it.javaClass.simpleName}" }
         }
         return Result(cards, errors)
     }
 
-    private fun card(prefs: Prefs, n: Int, league: String, team: String, score: FantasyScore): LeagueCard {
+    private fun card(prefs: Prefs, n: Int, league: String, team: String, score: FantasyScore, problems: MutableList<String>): LeagueCard {
         // Win-chance history for this matchup (one point per refresh).
         val key = "wp_${league}_${team}_${score.week}"
         val history = runCatching { JSONArray(prefs.cached(key) ?: "[]") }.getOrDefault(JSONArray())
@@ -52,26 +52,49 @@ object FantasyLoader {
         lastLead[n] = leadKey to score.lead
         val change = if (previous != null && previous != score.lead && score.lead != 0) score.lead else 0
 
-        return LeagueCard(score, wp, logo(score.me.logo), logo(score.opp.logo), change)
+        val cookie = if (prefs.espnS2.isNotBlank() && prefs.espnSwid.isNotBlank()) "espn_s2=${prefs.espnS2}; SWID=${prefs.espnSwid}" else null
+        return LeagueCard(score, wp, logo(score.me.logo, cookie, problems), logo(score.opp.logo, cookie, problems), change)
     }
 
-    /** Team logo, or null when missing or not a bitmap (ESPN's default logos are SVG). */
-    private fun logo(url: String): Bitmap? {
+    /**
+     * Team picture as a bitmap, or null. Handles http links (upgraded to https, since Android
+     * blocks plain http), ESPN-hosted images that need the account cookies, and SVG (ESPN's
+     * default avatars), which is rendered with AndroidSVG.
+     */
+    private fun logo(url: String, cookie: String?, problems: MutableList<String>): Bitmap? {
         if (url.isBlank()) return null
         synchronized(logos) { if (url in logos) return logos[url] }
+        val secure = if (url.startsWith("http://")) "https://" + url.removePrefix("http://") else url
         val bmp = runCatching {
-            val c = (URL(url).openConnection() as HttpURLConnection).apply {
+            val c = (URL(secure).openConnection() as HttpURLConnection).apply {
                 connectTimeout = 10_000
                 readTimeout = 10_000
                 instanceFollowRedirects = true
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android TV) Quiet/1.0")
+                if (cookie != null && secure.contains("espn")) setRequestProperty("Cookie", cookie)
             }
             try {
-                if (c.responseCode !in 200..299) null else c.inputStream.use { BitmapFactory.decodeStream(it) }
+                if (c.responseCode !in 200..299) error("HTTP ${c.responseCode}")
+                val bytes = c.inputStream.use { it.readBytes() }
+                val type = c.contentType.orEmpty()
+                val head = String(bytes, 0, minOf(bytes.size, 200)).trimStart()
+                if (type.contains("svg") || head.startsWith("<")) renderSvg(String(bytes))
+                else BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: error("not an image ($type)")
             } finally {
                 c.disconnect()
             }
-        }.getOrNull()?.let { if (it.width > 160) Bitmap.createScaledBitmap(it, 160, 160 * it.height / it.width, true) else it }
-        synchronized(logos) { logos[url] = bmp }
+        }.onFailure { problems += "Team picture ${URL(secure).host}: ${it.message}" }
+            .getOrNull()
+            ?.let { if (it.width > 160) Bitmap.createScaledBitmap(it, 160, 160 * it.height / it.width, true) else it }
+        // Only successes are cached, so a failed picture is retried on the next refresh.
+        if (bmp != null) synchronized(logos) { logos[url] = bmp }
+        return bmp
+    }
+
+    private fun renderSvg(text: String): Bitmap {
+        val svg = com.caverock.androidsvg.SVG.getFromString(text)
+        val bmp = Bitmap.createBitmap(160, 160, Bitmap.Config.ARGB_8888)
+        svg.renderToCanvas(android.graphics.Canvas(bmp), android.graphics.RectF(0f, 0f, 160f, 160f))
         return bmp
     }
 }

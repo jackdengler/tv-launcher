@@ -33,8 +33,8 @@ class LeagueCard(
 /**
  * Broadcast-style fantasy graphics, drawn directly on a Canvas (no layouts) so the overlay
  * stays cheap. Styles:
- * - "bug": a scorebug: logos, abbreviations and scores, with a pennant underneath pointing at
- *   whoever is favoured and their win chance.
+ * - "bug": a scorebug: logos, abbreviations and scores, with a pennant underneath showing both
+ *   projected finals and pointing at whoever is projected to win.
  * - "card": the bug plus a win-probability chart for the matchup and a status line.
  * - "full": the card plus every starter's points, side by side.
  * Sizes are design px (1920-wide screen) scaled by [unit].
@@ -90,7 +90,6 @@ class FantasyCardView(context: Context) : View(context) {
     private fun drawLeague(canvas: Canvas, c: LeagueCard) {
         val s = c.score
         val w = cardW
-        val wp = s.winProbability.toFloat()
 
         // Panel behind card/full styles; the bug carries its own bar.
         if (style != "bug") {
@@ -123,19 +122,21 @@ class FantasyCardView(context: Context) : View(context) {
         paint.color = Color.argb(60, 255, 255, 255)
         canvas.drawRect(half - 0.75f, 10f, half + 0.75f, bugH - 10f, paint)
 
-        // --- Pennant pointing at the favourite ---
-        val favMine = wp >= 0.5f
-        val pct = ((if (favMine) wp else 1f - wp) * 100).roundToInt().coerceIn(50, 99)
-        val label = "$pct%"
+        // --- Pennant: projected finals, pointing at whoever is projected to win ---
+        val myProj = s.me.expected
+        val oppProj = s.opp.expected
+        val favMine = myProj >= oppProj
+        val label = "PROJ  ${FantasyScore.fmt(myProj)} – ${FantasyScore.fmt(oppProj)}"
         text.typeface = bold
-        text.textSize = 15f
+        text.textSize = 14f
         val tw = text.measureText(label)
-        val pw = tw + 34f
+        val tipDepth = 12f
+        val pw = tw + 26f + tipDepth
         val top = bugH + 6f
-        val cx = if (favMine) half * 0.55f else w - half * 0.55f
+        // Centered, nudged toward the favourite so the tip sits under their half.
+        val cx = half + if (favMine) -14f else 14f
         val left = cx - pw / 2
         val right = cx + pw / 2
-        val tipDepth = 12f
         val pennant = Path().apply {
             if (favMine) {
                 moveTo(left, top + pennantH / 2)
@@ -156,7 +157,7 @@ class FantasyCardView(context: Context) : View(context) {
         canvas.drawPath(pennant, paint)
         text.color = if (favMine) Color.rgb(32, 24, 8) else Color.WHITE
         val tx = if (favMine) left + tipDepth + (pw - tipDepth - tw) / 2 else left + (pw - tipDepth - tw) / 2
-        canvas.drawText(label, tx, top + pennantH / 2 + 5.5f, text)
+        canvas.drawText(label, tx, top + pennantH / 2 + 5f, text)
 
         if (style == "bug") return
 

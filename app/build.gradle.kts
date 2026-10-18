@@ -75,4 +75,5 @@ dependencies {
     implementation(libs.androidx.palette)
     implementation(libs.androidx.profileinstaller)
     implementation(libs.zxing.core)
+    implementation(libs.androidsvg)
 }

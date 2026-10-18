@@ -23,6 +23,7 @@ class FantasyOverlay(private val context: Context) {
     private var root: LinearLayout? = null
     private lateinit var line1: TextView
     private lateinit var line2: TextView
+    private lateinit var banner: TextView
 
     /** Design px (1920-wide) to real px. */
     private fun px(v: Float): Float {
@@ -30,11 +31,27 @@ class FantasyOverlay(private val context: Context) {
         return v * maxOf(m.widthPixels, m.heightPixels) / 1920f
     }
 
-    fun show(score: FantasyScore) {
+    /** [lead] = 1 just took the lead, -1 just lost it, 0 no change (banner hidden). */
+    fun show(score: FantasyScore, lead: Int = 0) {
         val view = root ?: create().also { root = it }
         line1.text = score.headline
         line2.text = score.detail
+        if (lead != 0) {
+            banner.text = if (lead > 0) "▲ Took the lead" else "▼ Lost the lead"
+            banner.setTextColor(if (lead > 0) GOLD else ROSE)
+            line1.setTextColor(if (lead > 0) GOLD else ROSE)
+            banner.visibility = View.VISIBLE
+        } else {
+            banner.visibility = View.GONE
+            line1.setTextColor(Color.WHITE)
+        }
         view.visibility = View.VISIBLE
+    }
+
+    fun clearHighlight() {
+        if (root == null) return
+        banner.visibility = View.GONE
+        line1.setTextColor(Color.WHITE)
     }
 
     fun hide() {
@@ -44,6 +61,11 @@ class FantasyOverlay(private val context: Context) {
     fun destroy() {
         root?.let { runCatching { wm.removeView(it) } }
         root = null
+    }
+
+    private companion object {
+        val GOLD = Color.rgb(255, 210, 122)
+        val ROSE = Color.rgb(255, 138, 128)
     }
 
     private fun create(): LinearLayout {
@@ -59,9 +81,11 @@ class FantasyOverlay(private val context: Context) {
         }
         line1 = label(22f, R.font.manrope_semibold, 0.95f)
         line2 = label(15f, R.font.manrope_regular, 0.75f)
+        banner = label(16f, R.font.manrope_semibold, 1f).apply { visibility = View.GONE }
         val layout = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.END
+            addView(banner)
             addView(line1)
             addView(line2)
         }

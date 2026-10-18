@@ -11,6 +11,7 @@ import android.view.accessibility.AccessibilityEvent
 import com.jackdengler.quiet.MainActivity
 import com.jackdengler.quiet.QuietApp
 import com.jackdengler.quiet.data.Espn
+import com.jackdengler.quiet.data.Nfl
 import com.jackdengler.quiet.data.Prefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,6 +38,11 @@ class QuietAccessibilityService : AccessibilityService() {
     private var overlay: FantasyOverlay? = null
     private var overlayJob: Job? = null
     private var quietInFront = false
+
+    // Lead tracking for the "Took the lead" highlight, per league/team/week.
+    private var leadKey = ""
+    private var lastLead = 0
+    private var highlightJob: Job? = null
 
     override fun onServiceConnected() {
         stockLaunchers = findStockLaunchers()
@@ -87,12 +93,26 @@ class QuietAccessibilityService : AccessibilityService() {
                 val screenOn = getSystemService(PowerManager::class.java).isInteractive
                 if (screenOn && !quietInFront && (prefs.espnAlways || Espn.inGameWindow(now))) {
                     val result = withContext(Dispatchers.IO) {
-                        runCatching { Espn.fetch(prefs.espnLeague, prefs.espnTeam, prefs.espnS2, prefs.espnSwid, now) }
+                        // The public scoreboard tells us which starters are still playing.
+                        val states = runCatching { Nfl.states(Nfl.scoreboard()) }.getOrDefault(emptyMap())
+                        runCatching { Espn.fetch(prefs.espnLeague, prefs.espnTeam, prefs.espnS2, prefs.espnSwid, now, states) }
                     }
                     val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(now.time)
                     result.onSuccess { score ->
                         prefs.putCached(Espn.STATUS, "OK at $time: ${score.headline}")
-                        if (!quietInFront) overlay?.show(score)
+                        val key = "${prefs.espnLeague}/${prefs.espnTeam}/${score.week}"
+                        val previous = lastLead.takeIf { leadKey == key }
+                        leadKey = key
+                        lastLead = score.lead
+                        val change = if (previous != null && previous != score.lead && score.lead != 0) score.lead else 0
+                        if (!quietInFront) overlay?.show(score, change)
+                        if (change != 0) {
+                            highlightJob?.cancel()
+                            highlightJob = scope.launch {
+                                delay(LEAD_HIGHLIGHT_MS)
+                                overlay?.clearHighlight()
+                            }
+                        }
                     }.onFailure {
                         prefs.putCached(Espn.STATUS, "Failed at $time: ${it.message ?: it.javaClass.simpleName}")
                     }
@@ -101,7 +121,7 @@ class QuietAccessibilityService : AccessibilityService() {
                     val why = when {
                         !screenOn -> "Screen off"
                         quietInFront -> "Hidden while Quiet is on screen"
-                        else -> "Outside game windows (Thu/Mon 7 pm, Sun noon). Set When to show: Always to test"
+                        else -> "Outside game windows (Thu/Mon 7 pm, Sun 6 am). Set When to show: Always to test"
                     }
                     prefs.putCached(Espn.STATUS, why)
                 }
@@ -131,6 +151,7 @@ class QuietAccessibilityService : AccessibilityService() {
     companion object {
         private const val DEBOUNCE_MS = 400L
         private const val OVERLAY_REFRESH_MS = 60_000L
+        private const val LEAD_HIGHLIGHT_MS = 15_000L
 
         private val KNOWN_LAUNCHERS = setOf(
             "com.google.android.apps.tv.launcherx", // Google TV

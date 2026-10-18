@@ -10,6 +10,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Calendar
 
 /**
  * Weather and headlines for the home screen. Starts from the last cached values (no network on
@@ -22,8 +23,19 @@ class Ambient(private val prefs: Prefs) {
     private var news by mutableStateOf(News.decode(prefs.cached(NEWS)))
     private var index by mutableIntStateOf(0)
 
+    /** Live (and, during game windows, final) NFL games, shown in the pill between headlines. */
+    private var scores by mutableStateOf<List<NflGame>>(emptyList())
+
     val headline: Headline?
-        get() = news?.items?.takeIf { it.isNotEmpty() }?.let { it[index % it.size] }
+        get() {
+            val items = news?.items.orEmpty()
+            val games = scores.map { Headline(it.line, "NFL") }
+            val rotation = if (games.isEmpty()) items else interleave(games, items)
+            return rotation.takeIf { it.isNotEmpty() }?.let { it[index % it.size] }
+        }
+
+    private fun interleave(a: List<Headline>, b: List<Headline>): List<Headline> =
+        (0 until maxOf(a.size, b.size)).flatMap { i -> listOfNotNull(a.getOrNull(i), b.getOrNull(i)) }
 
     suspend fun run() = coroutineScope {
         delay(FIRST_FETCH_DELAY_MS)
@@ -47,6 +59,19 @@ class Ambient(private val prefs: Prefs) {
                     prefs.putCached(NEWS, News.encode(snapshot))
                 }
                 items.isNotEmpty()
+            }
+        }
+        launch {
+            // Scores only during game windows or while a game is live; nothing otherwise.
+            while (true) {
+                val inWindow = Espn.inGameWindow(Calendar.getInstance())
+                if (inWindow || scores.any { it.state == "in" }) {
+                    val games = withContext(Dispatchers.IO) { runCatching { Nfl.scoreboard() }.getOrNull() }
+                    if (games != null) scores = games.filter { it.state == "in" || (inWindow && it.state == "post") }
+                } else {
+                    scores = emptyList()
+                }
+                delay(if (scores.any { it.state == "in" }) SCORES_LIVE_MS else SCORES_IDLE_MS)
             }
         }
         launch {
@@ -79,5 +104,7 @@ class Ambient(private val prefs: Prefs) {
         const val NEWS_MS = 15 * 60_000L
         const val HEADLINE_ROTATE_MS = 60_000L
         const val RETRY_MS = 60_000L
+        const val SCORES_LIVE_MS = 2 * 60_000L
+        const val SCORES_IDLE_MS = 10 * 60_000L
     }
 }

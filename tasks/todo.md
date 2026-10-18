@@ -53,6 +53,31 @@ The workflow publishes `quiet.apk` to the `latest` release, so every green phase
 - [x] ESPN fetch every 60 s while visible during game windows only
 - [x] Push → CI green
 
+## Phase 7 — Live NFL scores + fantasy upgrades
+- [ ] ESPN public NFL scoreboard (no key); live/just-final games rotate into the headline pill as "NFL"
+- [ ] Polls every 2 min only while a game is live and Quiet is visible
+- [ ] Overlay: starters playing / yet to play (roster + scoreboard game state)
+- [ ] Overlay: accent highlight + "Took the lead" / "Lost the lead" for 15 s on a lead change
+- [ ] Push → CI green
+
+## Phase 8 — More headlines, more detail
+- [ ] Keep RSS summaries and publish time
+- [ ] Headline pill is focusable; OK opens a news panel (list with summaries, source, time)
+- [ ] QR code for the selected story so it opens on the phone
+- [ ] Push → CI green
+
+## Phase 9 — Weather glance
+- [ ] Open-Meteo hourly (12 h) + daily (3 days) in the same request
+- [ ] Weather is focusable; OK opens a forecast card
+- [ ] Push → CI green
+
+## Phase 10 — Live Santa Monica scene
+- [ ] Render on the TV: sky from real solar elevation (lat/lon + time), sun/moon, Santa Monica Mountains, ocean, pier + Ferris wheel, night lights
+- [ ] Weather layers from the current code: clouds, overcast, fog (marine layer), rain
+- [ ] Re-render every 10 min off the main thread; feeds the same backdrop (Ken Burns, frost, accent)
+- [ ] Settings: Background = Live scene (default) / Photos
+- [ ] Push → CI green
+
 ## Review
 
 **Status:** all 7 phases (0–6) compile and publish in CI. The release asset is at

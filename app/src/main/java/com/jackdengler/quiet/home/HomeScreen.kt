@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.focus.onFocusChanged
 import com.jackdengler.quiet.ui.tvClickable
+import com.jackdengler.quiet.painter.PaintedText
 import androidx.compose.ui.text.style.TextOverflow
 import com.jackdengler.quiet.data.Ambient
 import com.jackdengler.quiet.data.Headline
@@ -152,18 +153,17 @@ fun Clock(now: Long, size: Int = 148, alpha: Float = 1f) {
     val context = LocalContext.current
     val pattern = if (DateFormat.is24HourFormat(context)) "H:mm" else "h:mm"
     val format = remember(pattern) { SimpleDateFormat(pattern, Locale.getDefault()) }
-    Text(
+    // Hand-lettered; the painter repaints only the digits that change each minute.
+    PaintedText(
         format.format(Date(now)),
         style = TextStyle(
-            fontFamily = QuietFonts.Manrope,
-            fontWeight = FontWeight.ExtraLight,
-            fontSize = size.sp,
-            lineHeight = (size * 1.05f).sp,
-            letterSpacing = (-size * 0.02f).sp,
-            fontFeatureSettings = "tnum",
+            fontFamily = QuietFonts.CaveatBrush,
+            fontSize = (size * 1.1f).sp,
+            lineHeight = (size * 1.1f).sp,
             color = Color.White.copy(alpha = alpha),
             shadow = TextShadow,
         ),
+        painterScale = size / 148f,
     )
 }
 
@@ -239,15 +239,14 @@ fun HeadlinePill(
 ) {
     val accent by LocalAccent.current
     var focused by remember { mutableStateOf(false) }
-    // Focus lives on this stable wrapper so it survives the crossfade between headlines.
+    // Focus lives on this stable wrapper so it survives headline changes.
     val focusModifier = if (onClick != null && headline != null) {
         Modifier.onFocusChanged { focused = it.isFocused }.tvClickable(onClick)
     } else {
         Modifier
     }
+    val h = headline ?: return
     Box(focusModifier) {
-    Crossfade(headline, animationSpec = tween(700), label = "headline") { h ->
-        if (h == null) return@Crossfade
         Row(
             Modifier
                 .widthIn(max = maxWidth.dp)
@@ -265,17 +264,17 @@ fun HeadlinePill(
                 ),
             )
             Spacer(Modifier.width((14 * scale).dp))
-            Text(
+            // Hand-written by the painter whenever the headline rotates.
+            PaintedText(
                 h.title,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
                 style = TextStyle(
-                    fontFamily = QuietFonts.Manrope, fontWeight = FontWeight.Normal,
-                    fontSize = (20 * scale).sp, color = Color.White.copy(alpha = 0.92f),
+                    fontFamily = QuietFonts.Caveat, fontWeight = FontWeight.SemiBold,
+                    fontSize = (27 * scale).sp, color = Color.White.copy(alpha = 0.95f),
                 ),
+                painterScale = 0.62f * scale,
+                maxWidth = maxWidth - (190 * scale).toInt(),
             )
         }
-    }
     }
 }
 

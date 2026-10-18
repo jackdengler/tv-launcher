@@ -54,28 +54,38 @@ The workflow publishes `quiet.apk` to the `latest` release, so every green phase
 - [x] Push → CI green
 
 ## Phase 7 — Live NFL scores + fantasy upgrades
-- [ ] ESPN public NFL scoreboard (no key); live/just-final games rotate into the headline pill as "NFL"
-- [ ] Polls every 2 min only while a game is live and Quiet is visible
-- [ ] Overlay: starters playing / yet to play (roster + scoreboard game state)
-- [ ] Overlay: accent highlight + "Took the lead" / "Lost the lead" for 15 s on a lead change
-- [ ] Push → CI green
+- [x] ESPN public NFL scoreboard (no key); live/just-final games rotate into the headline pill as "NFL"
+- [x] Polls every 2 min only while a game is live and Quiet is visible
+- [x] Overlay: starters playing / yet to play (roster + scoreboard game state)
+- [x] Overlay: accent highlight + "Took the lead" / "Lost the lead" for 15 s on a lead change
+- [x] Push → CI green
 
 ## Phase 8 — More headlines, more detail
-- [ ] Keep RSS summaries and publish time
-- [ ] Headline pill is focusable; OK opens a news panel (list with summaries, source, time)
-- [ ] QR code for the selected story so it opens on the phone
-- [ ] Push → CI green
+- [x] Keep RSS summaries and publish time
+- [x] Headline pill is focusable; OK opens a news panel (list with summaries, source, time)
+- [x] QR code for the selected story so it opens on the phone
+- [x] Push → CI green
 
 ## Phase 9 — Weather glance
-- [ ] Open-Meteo hourly (12 h) + daily (3 days) in the same request
-- [ ] Weather is focusable; OK opens a forecast card
-- [ ] Push → CI green
+- [x] Open-Meteo hourly (12 h) + daily (3 days) in the same request
+- [x] Weather is focusable; OK opens a forecast card
+- [x] Push → CI green
 
 ## Phase 10 — Live Santa Monica scene
-- [ ] Render on the TV: sky from real solar elevation (lat/lon + time), sun/moon, Santa Monica Mountains, ocean, pier + Ferris wheel, night lights
-- [ ] Weather layers from the current code: clouds, overcast, fog (marine layer), rain
-- [ ] Re-render every 10 min off the main thread; feeds the same backdrop (Ken Burns, frost, accent)
-- [ ] Settings: Background = Live scene (default) / Photos
+- [x] Render on the TV: sky from real solar elevation (lat/lon + time), sun/moon, Santa Monica Mountains, ocean, pier + Ferris wheel, night lights
+- [x] Weather layers from the current code: clouds, overcast, fog (marine layer), rain
+- [x] Re-render every 10 min off the main thread; feeds the same backdrop (Ken Burns, frost, accent)
+- [x] Settings: Background = Live scene (default) / Photos
+- [x] Push → CI green
+
+## Phase 11 — Living Santa Monica
+- [x] Per-photo analysis: horizon, bright spots, sun
+- [x] Effects by real time/weather: sun breathing, water glints, night lights, gulls, clouds, fog, rain
+- [x] Push → CI green
+
+## Phase 12 — The painter
+- [x] Hand-lettered clock (Caveat Brush) and headlines (Caveat)
+- [x] Painter on a rope scrubs out changed digits / old headline and brush-paints the new text (zigzag strokes, drips)
 - [ ] Push → CI green
 
 ## Review

@@ -32,6 +32,7 @@ import com.jackdengler.quiet.home.Backdrop
 import com.jackdengler.quiet.home.DefaultSlots
 import com.jackdengler.quiet.home.Slot
 import com.jackdengler.quiet.home.effectiveSlots
+import com.jackdengler.quiet.takeover.FantasyPanel
 import com.jackdengler.quiet.takeover.OnboardingScreen
 import com.jackdengler.quiet.takeover.QuietAccessibilityService
 import com.jackdengler.quiet.home.BackdropState
@@ -63,7 +64,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
-enum class Screen { Home, AllApps, Settings, Onboarding, PickApp, News, Forecast }
+enum class Screen { Home, AllApps, Settings, Onboarding, PickApp, News, Forecast, Fantasy }
 
 class MainActivity : ComponentActivity() {
     private var screen by mutableStateOf(Screen.Home)
@@ -213,6 +214,7 @@ private fun QuietRoot(
                     onNews = { navigate(Screen.News) },
                     onForecast = { navigate(Screen.Forecast) },
                 )
+                Screen.Fantasy -> FantasyPanel(app.prefs) { navigate(Screen.AllApps) }
                 Screen.News -> NewsPanel(ambient.headlines) { navigate(Screen.Home) }
                 Screen.Forecast -> ForecastPanel(ambient.weather, isNight) { navigate(Screen.Home) }
                 Screen.PickApp -> AllAppsScreen(
@@ -244,6 +246,7 @@ private fun QuietRoot(
                         onBack = { navigate(Screen.Home) },
                         extras = listOfNotNull(
                             "Quiet settings" to { navigate(Screen.Settings) },
+                            ("Fantasy" to { navigate(Screen.Fantasy) }).takeIf { app.prefs.espnLeagues.isNotEmpty() },
                             update?.let { "Update Quiet (build ${it.build})" to { scope.launch { Updater.install(context) }; Unit } },
                         ),
                     )

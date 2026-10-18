@@ -11,7 +11,6 @@ import android.view.accessibility.AccessibilityEvent
 import com.jackdengler.quiet.MainActivity
 import com.jackdengler.quiet.QuietApp
 import com.jackdengler.quiet.data.Espn
-import com.jackdengler.quiet.data.Nfl
 import com.jackdengler.quiet.data.Prefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,9 +38,6 @@ class QuietAccessibilityService : AccessibilityService() {
     private var overlayJob: Job? = null
     private var quietInFront = false
 
-    // Lead tracking for the "Took the lead" highlight, per league/team/week.
-    private var leadKey = ""
-    private var lastLead = 0
     private var highlightJob: Job? = null
 
     override fun onServiceConnected() {
@@ -86,35 +82,30 @@ class QuietAccessibilityService : AccessibilityService() {
     private fun restartOverlay(prefs: Prefs) {
         overlayJob?.cancel()
         overlay?.hide()
-        if (!prefs.espnEnabled || prefs.espnLeague.isBlank() || prefs.espnTeam.isBlank()) return
+        val anyShown = prefs.espnLeagues.any { (n) -> if (n == 1) prefs.espnShow1 else prefs.espnShow2 }
+        if (!prefs.espnEnabled || !anyShown) return
         overlayJob = scope.launch {
             while (isActive) {
                 val now = Calendar.getInstance()
                 val screenOn = getSystemService(PowerManager::class.java).isInteractive
                 if (screenOn && !quietInFront && (prefs.espnAlways || Espn.inGameWindow(now))) {
-                    val result = withContext(Dispatchers.IO) {
-                        // The public scoreboard tells us which starters are still playing.
-                        val states = runCatching { Nfl.states(Nfl.scoreboard()) }.getOrDefault(emptyMap())
-                        runCatching { Espn.fetch(prefs.espnLeague, prefs.espnTeam, prefs.espnS2, prefs.espnSwid, now, states) }
-                    }
+                    val result = withContext(Dispatchers.IO) { FantasyLoader.load(prefs, onlyShown = true, now = now) }
                     val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(now.time)
-                    result.onSuccess { score ->
-                        prefs.putCached(Espn.STATUS, "OK at $time: ${score.headline}")
-                        val key = "${prefs.espnLeague}/${prefs.espnTeam}/${score.week}"
-                        val previous = lastLead.takeIf { leadKey == key }
-                        leadKey = key
-                        lastLead = score.lead
-                        val change = if (previous != null && previous != score.lead && score.lead != 0) score.lead else 0
-                        if (!quietInFront) overlay?.show(score, change)
-                        if (change != 0) {
-                            highlightJob?.cancel()
-                            highlightJob = scope.launch {
-                                delay(LEAD_HIGHLIGHT_MS)
-                                overlay?.clearHighlight()
-                            }
+                    val cards = result.cards.map { it.second }
+                    prefs.putCached(
+                        Espn.STATUS,
+                        (listOf("Updated $time") + result.cards.map { (n, c) -> "League $n: ${c.score.headline}" } + result.errors)
+                            .joinToString(" · "),
+                    )
+                    if (!quietInFront) overlay?.show(cards, prefs.espnStyle, prefs.espnCorner)
+                    if (cards.any { it.leadChange != 0 }) {
+                        // Celebrate (or commiserate) for a moment, then settle back.
+                        highlightJob?.cancel()
+                        highlightJob = scope.launch {
+                            delay(LEAD_HIGHLIGHT_MS)
+                            val calm = cards.map { LeagueCard(it.score, it.history, it.myLogo, it.oppLogo) }
+                            if (!quietInFront) overlay?.show(calm, prefs.espnStyle, prefs.espnCorner)
                         }
-                    }.onFailure {
-                        prefs.putCached(Espn.STATUS, "Failed at $time: ${it.message ?: it.javaClass.simpleName}")
                     }
                 } else {
                     overlay?.hide()

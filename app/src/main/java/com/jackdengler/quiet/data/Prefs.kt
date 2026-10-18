@@ -65,6 +65,37 @@ class Prefs(context: Context) {
     var espnTeam: String
         get() = sp.getString("espn_team", "") ?: ""
         set(v) = sp.edit().putString("espn_team", v.trim()).apply()
+    // Second league (same ESPN account, so the same cookies).
+    var espnLeague2: String
+        get() = sp.getString("espn_league2", "") ?: ""
+        set(v) = sp.edit().putString("espn_league2", v.trim()).apply()
+    var espnTeam2: String
+        get() = sp.getString("espn_team2", "") ?: ""
+        set(v) = sp.edit().putString("espn_team2", v.trim()).apply()
+
+    /** Which leagues the overlay shows (both, one, or neither). */
+    var espnShow1: Boolean
+        get() = sp.getBoolean("espn_show1", true)
+        set(v) = sp.edit().putBoolean("espn_show1", v).apply()
+    var espnShow2: Boolean
+        get() = sp.getBoolean("espn_show2", true)
+        set(v) = sp.edit().putBoolean("espn_show2", v).apply()
+
+    /** Overlay look: "bug" (scorebug), "card" (adds win chart), "full" (every starter). */
+    var espnStyle: String
+        get() = sp.getString("espn_style", "bug") ?: "bug"
+        set(v) = sp.edit().putString("espn_style", v).apply()
+
+    /** Overlay corner: top-left (default, clear of network logos), top-right, bottom-left, bottom-right. */
+    var espnCorner: String
+        get() = sp.getString("espn_corner", "top-left") ?: "top-left"
+        set(v) = sp.edit().putString("espn_corner", v).apply()
+
+    /** Configured leagues as (number, leagueId, teamId), whether shown or not. */
+    val espnLeagues: List<Triple<Int, String, String>>
+        get() = listOf(Triple(1, espnLeague, espnTeam), Triple(2, espnLeague2, espnTeam2))
+            .filter { it.second.isNotBlank() && it.third.isNotBlank() }
+
     var espnS2: String
         get() = sp.getString("espn_s2", "") ?: ""
         set(v) = sp.edit().putString("espn_s2", v.trim()).apply()

@@ -61,6 +61,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private val STYLE_LABELS = linkedMapOf("bug" to "Scorebug", "card" to "Card with win chart", "full" to "Full rosters")
+private val CORNER_LABELS = linkedMapOf(
+    "top-left" to "Top left", "top-right" to "Top right", "bottom-left" to "Bottom left", "bottom-right" to "Bottom right",
+)
+
 /** A text value being edited in the full-screen editor. */
 private data class Editor(
     val title: String,
@@ -156,16 +161,36 @@ fun SettingsScreen(prefs: Prefs, onBack: () -> Unit, onHomeSetup: () -> Unit) {
                 }
             }
             item {
-                SettingRow("League ID", prefs.espnLeague.ifBlank { "Not set" }) {
-                    editor = Editor("League ID", "The number after leagueId= in your ESPN league URL.", prefs.espnLeague, KeyboardType.Number) {
-                        prefs.espnLeague = it
-                    }
+                SettingRow("Look", STYLE_LABELS[prefs.espnStyle] ?: "Scorebug") {
+                    prefs.espnStyle = STYLE_LABELS.keys.let { keys -> keys.elementAt((keys.indexOf(prefs.espnStyle) + 1) % keys.size) }
                 }
             }
             item {
-                SettingRow("Team ID", prefs.espnTeam.ifBlank { "Not set" }) {
-                    editor = Editor("Team ID", "The number after teamId= on your team page.", prefs.espnTeam, KeyboardType.Number) {
-                        prefs.espnTeam = it
+                SettingRow("Corner", CORNER_LABELS[prefs.espnCorner] ?: "Top left") {
+                    prefs.espnCorner = CORNER_LABELS.keys.let { keys -> keys.elementAt((keys.indexOf(prefs.espnCorner) + 1) % keys.size) }
+                }
+            }
+            for (n in 1..2) {
+                val league = if (n == 1) prefs.espnLeague else prefs.espnLeague2
+                val team = if (n == 1) prefs.espnTeam else prefs.espnTeam2
+                val shown = if (n == 1) prefs.espnShow1 else prefs.espnShow2
+                item {
+                    SettingRow("League $n", if (league.isBlank()) "Not set" else if (shown) "Shown" else "Hidden") {
+                        if (n == 1) prefs.espnShow1 = !shown else prefs.espnShow2 = !shown
+                    }
+                }
+                item {
+                    SettingRow("   League $n ID", league.ifBlank { "Not set" }) {
+                        editor = Editor("League $n ID", "The number after leagueId= in the league's ESPN address.", league, KeyboardType.Number) {
+                            if (n == 1) prefs.espnLeague = it else prefs.espnLeague2 = it
+                        }
+                    }
+                }
+                item {
+                    SettingRow("   League $n team ID", team.ifBlank { "Not set" }) {
+                        editor = Editor("League $n team ID", "The number after teamId= on your team page in that league.", team, KeyboardType.Number) {
+                            if (n == 1) prefs.espnTeam = it else prefs.espnTeam2 = it
+                        }
                     }
                 }
             }

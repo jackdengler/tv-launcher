@@ -98,8 +98,8 @@ fun SettingsScreen(prefs: Prefs, onBack: () -> Unit, onHomeSetup: () -> Unit) {
                 SettingRow("Temperature", if (prefs.fahrenheit) "°F" else "°C") { prefs.fahrenheit = !prefs.fahrenheit }
             }
             item {
-                SettingRow("Headlines feed (RSS)", prefs.rssUrl) {
-                    editor = Editor("Headlines feed", "Any RSS or Atom URL. Leave empty for BBC News.", prefs.rssUrl, KeyboardType.Uri) {
+                SettingRow("Headline feeds", "${prefs.feeds.size} feed(s): " + prefs.feeds.joinToString(", ") { it.substringAfter("//").substringBefore("/") }) {
+                    editor = Editor("Headline feeds", "One or more RSS/Atom URLs separated by spaces. Leave empty for WSJ + Variety.", prefs.rssUrl, KeyboardType.Uri) {
                         prefs.rssUrl = it
                     }
                 }

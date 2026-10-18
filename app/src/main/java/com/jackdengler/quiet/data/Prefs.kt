@@ -33,9 +33,11 @@ class Prefs(context: Context) {
     var fahrenheit: Boolean
         get() = sp.getBoolean("fahrenheit", true)
         set(v) = sp.edit().putBoolean("fahrenheit", v).apply()
+    /** Headline feed URLs, stored space-separated. */
     var rssUrl: String
         get() = sp.getString("rss", null)?.takeIf { it.isNotBlank() } ?: DEFAULT_RSS
         set(v) = sp.edit().putString("rss", v.trim()).apply()
+    val feeds: List<String> get() = rssUrl.split(Regex("[\\s,]+")).filter { it.startsWith("http") }
 
     /** Package chosen for home tile [index] by long-press, or null for the default. */
     fun slotPackage(index: Int): String? = sp.getString("slot$index", null)
@@ -73,6 +75,7 @@ class Prefs(context: Context) {
     val weatherKey: String get() = "$latitude,$longitude,$fahrenheit"
 
     companion object {
-        const val DEFAULT_RSS = "https://feeds.bbci.co.uk/news/rss.xml"
+        const val DEFAULT_RSS =
+            "https://feeds.content.dowjones.io/public/rss/RSSWorldNews https://variety.com/feed/"
     }
 }

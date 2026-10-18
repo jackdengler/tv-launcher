@@ -39,7 +39,7 @@ class Ambient(private val prefs: Prefs) {
         launch {
             refreshLoop(NEWS_MS, { news?.takeIf { it.url == prefs.rssUrl }?.fetchedAt }) {
                 val url = prefs.rssUrl
-                val items = News.fetch(url)
+                val items = News.fetchAll(prefs.feeds)
                 if (items.isNotEmpty()) {
                     val snapshot = News.Snapshot(items, System.currentTimeMillis(), url)
                     news = snapshot

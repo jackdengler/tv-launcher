@@ -12,13 +12,32 @@ data class Headline(val title: String, val source: String)
 /** RSS 2.0 / Atom headline reader (title + feed name). Blocking; call from Dispatchers.IO. */
 object News {
     private const val MAX = 12
+    private const val MAX_TOTAL = 24
+
+    /** Fetches every feed and interleaves them (A1, B1, A2, B2, …); a failing feed is skipped. */
+    fun fetchAll(urls: List<String>): List<Headline> {
+        val lists = urls.map { url -> runCatching { fetch(url) }.getOrDefault(emptyList()) }
+        val longest = lists.maxOfOrNull { it.size } ?: 0
+        return (0 until longest).flatMap { i -> lists.mapNotNull { it.getOrNull(i) } }.take(MAX_TOTAL)
+    }
 
     fun fetch(url: String): List<Headline> {
         val body = Http.get(url).body ?: return emptyList()
-        return parse(body)
+        return parse(body, knownSource(url))
     }
 
-    fun parse(xml: String): List<Headline> {
+    /** Short tags for feeds whose titles are long or generic. */
+    private fun knownSource(url: String): String? {
+        val host = runCatching { java.net.URI(url).host.orEmpty() }.getOrDefault("")
+        return when {
+            "dowjones" in host || "wsj" in host || "dj.com" in host -> "WSJ"
+            "variety.com" in host -> "Variety"
+            "bbc" in host -> "BBC News"
+            else -> null
+        }
+    }
+
+    fun parse(xml: String, sourceOverride: String? = null): List<Headline> {
         val parser = Xml.newPullParser()
         parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
         parser.setInput(StringReader(xml))
@@ -43,7 +62,7 @@ object News {
                 XmlPullParser.END_TAG -> if (parser.name == "item" || parser.name == "entry") inItem = false
             }
         }
-        val source = shortSource(feedTitle)
+        val source = sourceOverride ?: shortSource(feedTitle)
         return titles.filter { it.isNotBlank() }.map { Headline(it, source) }
     }
 

@@ -94,3 +94,9 @@ These fill gaps in the spec. Each one can be changed.
 - **Cold start:** release builds use R8, a baseline profile via `androidx.profileinstaller`,
   a black window background, and no splash work. Network and disk work start after the
   first frame.
+
+### Changes after the first build
+- **Headlines:** the default is now WSJ World News
+  (`https://feeds.content.dowjones.io/public/rss/RSSWorldNews`) plus Variety
+  (`https://variety.com/feed/`), interleaved, with the tags "WSJ" and "Variety". The setting
+  accepts any number of feed URLs separated by spaces.

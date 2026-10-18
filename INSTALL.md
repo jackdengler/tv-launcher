@@ -68,7 +68,7 @@ because every build is signed with the same key, which is committed in this repo
 Open **All apps** and choose **Quiet settings**, the first tile:
 
 - Weather location (city search or latitude/longitude) and °F/°C
-- News RSS feed URL (BBC News by default)
+- Headline feeds: one or more RSS URLs separated by spaces (WSJ World News + Variety by default)
 - ESPN fantasy overlay: league ID, team ID, and the `espn_s2` and `SWID` cookies if your league
   is private
 

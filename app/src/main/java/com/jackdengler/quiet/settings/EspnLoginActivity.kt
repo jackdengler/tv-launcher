@@ -11,6 +11,9 @@ import androidx.lifecycle.lifecycleScope
 import com.jackdengler.quiet.QuietApp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.jackdengler.quiet.data.EspnLeagues
 
 /**
  * Sign in to ESPN on the TV and capture the espn_s2 / SWID cookies a private league needs, so no
@@ -62,8 +65,20 @@ class EspnLoginActivity : ComponentActivity() {
         val prefs = (application as QuietApp).prefs
         prefs.espnS2 = s2
         prefs.espnSwid = swid
-        Toast.makeText(this, "Signed in. ESPN cookies saved.", Toast.LENGTH_LONG).show()
-        finish()
+        // Fill in the leagues from the account, so nobody has to look up IDs.
+        lifecycleScope.launch {
+            val found = withContext(Dispatchers.IO) {
+                runCatching { EspnLeagues.find(s2, swid) }.getOrDefault(emptyList())
+            }
+            val added = EspnLeagues.assign(prefs, found)
+            val message = when {
+                found.isEmpty() -> "Signed in. Enter your league ID in settings."
+                added > 0 -> "Signed in. Added ${found.take(2).joinToString(" and ") { it.leagueName }}."
+                else -> "Signed in. Found ${found.size} league(s); pick them under Find my leagues."
+            }
+            Toast.makeText(this@EspnLoginActivity, message, Toast.LENGTH_LONG).show()
+            finish()
+        }
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {

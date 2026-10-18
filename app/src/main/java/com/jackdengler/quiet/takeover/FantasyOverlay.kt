@@ -39,9 +39,12 @@ class FantasyOverlay(private val context: Context) {
         return layout
     }
 
-    fun show(cards: List<LeagueCard>, style: String, corner: String) {
+    fun show(cards: List<LeagueCard>, style: String, corner: String, size: Float = 1f, opacity: Int = 100) {
         if (cards.isEmpty()) return hide()
         val layout = ensure(corner)
+        layout.alpha = opacity.coerceIn(20, 100) / 100f
+        if (bug?.scaleUp != size) bug?.scaleUp = size
+        if (play?.scaleUp != size) play?.scaleUp = size
         bug?.style = style
         bug?.cards = cards
         bug?.visibility = View.VISIBLE

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 320x180 banner for the Scores on/off tile: a scorebug outline with an eye. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="180dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:fillColor="#141A22" android:pathData="M0,0h320v180h-320z" />
+    <path android:fillColor="#F2C45C" android:pathData="M70,66h180a10,10 0,0 1,10 10v28a10,10 0,0 1,-10 10h-180a10,10 0,0 1,-10 -10v-28a10,10 0,0 1,10 -10z" />
+    <path android:fillColor="#141A22" android:pathData="M160,74c-18,0 -30,16 -30,16s12,16 30,16s30,-16 30,-16s-12,-16 -30,-16zM160,100a10,10 0,1 1,0 -20a10,10 0,1 1,0 20z" />
+</vector>

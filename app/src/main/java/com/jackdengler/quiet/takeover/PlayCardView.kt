@@ -25,7 +25,10 @@ class PlayCardView(context: Context) : View(context) {
     var pop: PlayPop? = null
         set(value) { field = value; invalidate() }
 
-    private val unit get() = max(resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels) / 1920f
+    /** Size multiplier from the overlay's Size setting. */
+    var scaleUp = 1f
+        set(value) { field = value; requestLayout(); invalidate() }
+    private val unit get() = scaleUp * max(resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels) / 1920f
     private val bold: Typeface = ResourcesCompat.getFont(context, R.font.manrope_semibold) ?: Typeface.DEFAULT_BOLD
     private val regular: Typeface = ResourcesCompat.getFont(context, R.font.manrope_regular) ?: Typeface.DEFAULT
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)

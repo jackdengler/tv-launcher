@@ -97,10 +97,21 @@ class QuietAccessibilityService : AccessibilityService() {
     private fun restartOverlay(prefs: Prefs) {
         overlayJob?.cancel()
         playJob?.cancel()
+        rotateJob?.cancel()
         overlay?.hide()
         val anyShown = prefs.espnLeagues.any { (n) -> if (n == 1) prefs.espnShow1 else prefs.espnShow2 }
         if (!prefs.espnEnabled || !anyShown) return
         if (prefs.espnPlays) playJob = scope.launch { watchPlays(prefs) }
+        rotateJob?.cancel()
+        rotateJob = scope.launch {
+            while (isActive) {
+                delay(ROTATE_MS)
+                if (prefs.espnRotate && shownCards.size > 1 && !quietInFront) {
+                    rotateIndex++
+                    showCards(prefs)
+                }
+            }
+        }
         overlayJob = scope.launch {
             while (isActive) {
                 try {
@@ -129,14 +140,15 @@ class QuietAccessibilityService : AccessibilityService() {
                 (listOf("Updated $time") + result.cards.map { (n, c) -> "League $n: ${c.score.headline}" } + result.errors)
                     .joinToString(" · "),
             )
-            if (!quietInFront) overlay?.show(cards, prefs.espnStyle, prefs.espnCorner)
+            shownCards = cards
+            if (!quietInFront) showCards(prefs)
             if (cards.any { it.leadChange != 0 }) {
                 // Celebrate (or commiserate) for a moment, then settle back.
                 highlightJob?.cancel()
                 highlightJob = scope.launch {
                     delay(LEAD_HIGHLIGHT_MS)
-                    val calm = cards.map { LeagueCard(it.score, it.history, it.myLogo, it.oppLogo) }
-                    if (!quietInFront) overlay?.show(calm, prefs.espnStyle, prefs.espnCorner)
+                    shownCards = cards.map { LeagueCard(it.score, it.history, it.myLogo, it.oppLogo) }
+                    if (!quietInFront) showCards(prefs)
                 }
             }
         } else {
@@ -148,6 +160,17 @@ class QuietAccessibilityService : AccessibilityService() {
             }
             prefs.putCached(Espn.STATUS, why)
         }
+    }
+
+    // What the bug shows; with Rotate on, one league at a time.
+    private var shownCards: List<LeagueCard> = emptyList()
+    private var rotateIndex = 0
+    private var rotateJob: Job? = null
+
+    private fun showCards(prefs: Prefs) {
+        val all = shownCards
+        val visible = if (prefs.espnRotate && all.size > 1) listOf(all[rotateIndex % all.size]) else all
+        overlay?.show(visible, prefs.espnStyle, prefs.espnCorner, prefs.espnSize, prefs.espnOpacity)
     }
 
     /** Latest fantasy data from the overlay loop; the play watcher reads it. */
@@ -227,6 +250,7 @@ class QuietAccessibilityService : AccessibilityService() {
         private const val OVERLAY_REFRESH_MS = 60_000L
         private const val LEAD_HIGHLIGHT_MS = 15_000L
         private const val PLAY_POLL_MS = 15_000L
+        private const val ROTATE_MS = 10_000L
         private const val PLAY_MS = 6_000L
         private const val BIG_PLAY_MS = 9_000L
         private const val STALE_PLAY_MS = 120_000L

@@ -54,6 +54,23 @@
             <!-- The HOME filter is added by the launcher flavor (src/launcher/AndroidManifest.xml). -->
         </activity>
 
+        <!-- "Scores on/off" tile in the Apps row: flips the fantasy overlay and closes. -->
+        <activity
+            android:name=".settings.ToggleScoresActivity"
+            android:banner="@drawable/banner_toggle"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:label="Scores on/off"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".settings.EspnLoginActivity"
             android:exported="false"

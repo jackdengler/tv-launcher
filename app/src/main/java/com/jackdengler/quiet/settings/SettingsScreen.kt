@@ -66,6 +66,7 @@ private val BACKGROUND_LABELS = linkedMapOf(
     "photos" to "Santa Monica photos: live time of day & weather",
     "mix" to "Photo mix",
 )
+private val SIZE_LABELS = linkedMapOf(0.8f to "Small", 1f to "Medium", 1.25f to "Large")
 private val STYLE_LABELS = linkedMapOf("bug" to "Scorebug", "card" to "Card with win chart", "full" to "Full rosters")
 private val CORNER_LABELS = linkedMapOf(
     "top-right" to "Top right", "top-left" to "Top left", "bottom-left" to "Bottom left", "bottom-right" to "Bottom right",
@@ -92,14 +93,17 @@ fun SettingsScreen(
 ) {
     var editor by remember { mutableStateOf<Editor?>(null) }
     var locating by remember { mutableStateOf(false) }
+    var phoneSetup by remember { mutableStateOf(false) }
+    var picking by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    BackHandler(enabled = editor == null && !locating, onBack = onBack)
+    BackHandler(enabled = editor == null && !locating && !phoneSetup && !picking, onBack = onBack)
     // Re-read prefs whenever they change.
     prefs.changes.collectAsState().value
 
     val first = remember { FocusRequester() }
-    LaunchedEffect(editor == null && !locating) {
-        if (editor == null && !locating) {
+    val idle = editor == null && !locating && !phoneSetup && !picking
+    LaunchedEffect(idle) {
+        if (idle) {
             withFrameNanos { }
             runCatching { first.requestFocus() }
         }
@@ -122,6 +126,13 @@ fun SettingsScreen(
                 if (crash != null) SettingRow("Last error", crash) { prefs.putCached(com.jackdengler.quiet.QuietApp.LAST_CRASH, "") }
             }
             if (scoresOnly) {
+                item {
+                    SettingRow("Scores overlay", if (prefs.espnEnabled) "Shown: select to hide" else "Hidden: select to show") {
+                        prefs.espnEnabled = !prefs.espnEnabled
+                    }
+                }
+                item { SettingRow("Set up from your phone", "Scan a code and paste your ESPN links", onClick = { phoneSetup = true }) }
+                item { SettingRow("Find my leagues", "After Sign in to ESPN: pick your teams from a list", onClick = { picking = true }) }
                 item { SettingRow("Overlay service", "Turn on the accessibility service that draws the scorebug", onClick = onHomeSetup) }
                 item { SettingRow("Full scores", "Both leagues with every starter", onClick = onFantasy) }
             } else {
@@ -202,6 +213,27 @@ fun SettingsScreen(
                     prefs.espnStyle = STYLE_LABELS.keys.let { keys -> keys.elementAt((keys.indexOf(prefs.espnStyle) + 1) % keys.size) }
                 }
             }
+            if (!scoresOnly) {
+                item { SettingRow("Set up from your phone", "Scan a code and paste your ESPN links", onClick = { phoneSetup = true }) }
+                item { SettingRow("Find my leagues", "After Sign in to ESPN: pick your teams from a list", onClick = { picking = true }) }
+            }
+            item {
+                SettingRow("Size", SIZE_LABELS.entries.firstOrNull { it.key == prefs.espnSize }?.value ?: "Medium") {
+                    val keys = SIZE_LABELS.keys.toList()
+                    prefs.espnSize = keys[(keys.indexOf(prefs.espnSize) + 1) % keys.size]
+                }
+            }
+            item {
+                SettingRow("Opacity", "${prefs.espnOpacity}%") {
+                    val steps = listOf(100, 85, 70, 55)
+                    prefs.espnOpacity = steps[(steps.indexOf(prefs.espnOpacity) + 1) % steps.size]
+                }
+            }
+            item {
+                SettingRow("Two leagues", if (prefs.espnRotate) "Take turns (one at a time, every 10 s)" else "Stacked") {
+                    prefs.espnRotate = !prefs.espnRotate
+                }
+            }
             item {
                 SettingRow("Play pop-ups", if (prefs.espnPlays) "On: your starters and your opponents'" else "Off") {
                     prefs.espnPlays = !prefs.espnPlays
@@ -270,6 +302,8 @@ fun SettingsScreen(
 
     editor?.let { e -> TextEditor(e) { editor = null } }
     if (locating) LocationEditor(prefs) { locating = false }
+    if (phoneSetup) PhoneSetupScreen(prefs) { phoneSetup = false }
+    if (picking) LeaguePicker(prefs) { picking = false }
 }
 
 @Composable
@@ -446,6 +480,46 @@ fun UpdateRow(modifier: Modifier = Modifier) {
                 else -> {
                     Updater.check(force = true)
                     if (Updater.state is Updater.State.Available) Updater.install(context)
+                }
+            }
+        }
+    }
+}
+
+/** Teams on the signed-in ESPN account; the first pick becomes League 1, the next League 2. */
+@Composable
+private fun LeaguePicker(prefs: Prefs, onClose: () -> Unit) = EditorFrame(
+    "Find my leagues",
+    "Your ESPN football teams this season. Select one for League 1, then one for League 2.",
+    onClose,
+) {
+    var result by remember { mutableStateOf<Result<List<com.jackdengler.quiet.data.LeagueChoice>>?>(null) }
+    var slot by remember { androidx.compose.runtime.mutableIntStateOf(1) }
+    val first = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        result = withContext(Dispatchers.IO) {
+            runCatching { com.jackdengler.quiet.data.EspnLeagues.find(prefs.espnS2, prefs.espnSwid) }
+        }
+        withFrameNanos { }
+        runCatching { first.requestFocus() }
+    }
+    val text = TextStyle(fontFamily = QuietFonts.Manrope, fontSize = 22.sp, color = Color.White.copy(alpha = 0.8f))
+    val r = result
+    when {
+        r == null -> Text("Looking up your teams…", style = text)
+        r.isFailure -> Text(r.exceptionOrNull()?.message ?: "Couldn't reach ESPN.", style = text)
+        r.getOrThrow().isEmpty() -> Text("No football teams found for this season on the signed-in account.", style = text)
+        else -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            prefs.changes.collectAsState().value
+            r.getOrThrow().forEachIndexed { i, c ->
+                val tag = when {
+                    c.leagueId == prefs.espnLeague && c.teamId == prefs.espnTeam -> " · League 1"
+                    c.leagueId == prefs.espnLeague2 && c.teamId == prefs.espnTeam2 -> " · League 2"
+                    else -> ""
+                }
+                SettingRow(c.leagueName, c.teamName + tag, if (i == 0) Modifier.focusRequester(first) else Modifier) {
+                    if (slot == 1) { prefs.espnLeague = c.leagueId; prefs.espnTeam = c.teamId } else { prefs.espnLeague2 = c.leagueId; prefs.espnTeam2 = c.teamId }
+                    slot = if (slot == 1) 2 else 1
                 }
             }
         }

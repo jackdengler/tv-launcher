@@ -134,11 +134,23 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private const val OFFERED_BUILD = "offered_build"
+
 /** Quiet Scores: settings for the fantasy overlay, its setup screen, and the full scores view. */
 @Composable
 private fun ScoresRoot(app: QuietApp, close: () -> Unit) {
     var screen by remember {
         mutableStateOf(if (QuietAccessibilityService.isEnabled(app)) Screen.Settings else Screen.Onboarding)
+    }
+    // Offer a new build as soon as the app opens (once per build), so it's never left behind.
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        Updater.check(force = true)
+        val update = Updater.state as? Updater.State.Available ?: return@LaunchedEffect
+        if (app.prefs.cached(OFFERED_BUILD) != update.build.toString()) {
+            app.prefs.putCached(OFFERED_BUILD, update.build.toString())
+            Updater.install(context)
+        }
     }
     Box(
         Modifier.fillMaxSize().background(

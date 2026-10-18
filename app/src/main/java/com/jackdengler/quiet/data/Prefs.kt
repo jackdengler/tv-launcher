@@ -100,6 +100,21 @@ class Prefs(context: Context) {
         get() = sp.getString("espn_corner", "top-right") ?: "top-right"
         set(v) = sp.edit().putString("espn_corner", v).apply()
 
+    /** Overlay size multiplier: 0.8 small, 1.0 medium, 1.25 large. */
+    var espnSize: Float
+        get() = sp.getFloat("espn_size", 1f)
+        set(v) = sp.edit().putFloat("espn_size", v).apply()
+
+    /** Overlay opacity in percent (100 = solid). */
+    var espnOpacity: Int
+        get() = sp.getInt("espn_opacity", 100)
+        set(v) = sp.edit().putInt("espn_opacity", v).apply()
+
+    /** With two leagues: show one at a time, switching every 10 s, instead of stacking them. */
+    var espnRotate: Boolean
+        get() = sp.getBoolean("espn_rotate", false)
+        set(v) = sp.edit().putBoolean("espn_rotate", v).apply()
+
     /** Pop-up cards for each play involving my starters or my opponents'. */
     var espnPlays: Boolean
         get() = sp.getBoolean("espn_plays", true)

@@ -31,16 +31,22 @@ keyboard icon.
    - If the switch snaps back off, go to **Settings → Apps → See all apps → Quiet Scores** and
      choose **Allow restricted settings**, then try again. If that option isn't there, use
      **Reinstall Quiet** in the app and try again.
-2. Back in Quiet Scores, set **League 1 ID** and **League 1 team ID** (and League 2 if you
-   have one). To find them, open the league on fantasy.espn.com in a phone browser: the
-   address shows `leagueId=…`, and your team page shows `teamId=…`.
-3. **Private league?** Choose **Sign in to ESPN** and log in once on the TV.
-4. Pick a **Look** (Scorebug, Card, or Full rosters) and a **Corner**. Turn **Play pop-ups**
-   on or off, and set the **Play delay** so pop-ups match your stream.
+2. Add your leagues, whichever way is easiest:
+   - **Sign in to ESPN** (log in once on the TV). Quiet Scores finds your teams and fills in
+     League 1 and League 2. Use **Find my leagues** to choose different ones.
+   - **Set up from your phone:** scan the code on the TV with the phone camera (same Wi-Fi),
+     paste your ESPN team page link, and tap **Save to TV**.
+3. Pick a **Look** (Scorebug, Card, or Full rosters), **Corner**, **Size**, **Opacity**, and
+   **Two leagues** (stacked, or taking turns). Turn **Play pop-ups** on or off, and set the
+   **Play delay** so pop-ups match your stream.
+
+**Quick show/hide:** the **Scores on/off** tile in the Apps row flips the overlay with one click.
+Add it to your favourites for easy reach.
 
 The scorebug shows during NFL game windows. Set **When to show** to **Always** to test it right
 away. **Full scores** shows both leagues with every starter.
 
 ## Updating
 
-Open Quiet Scores and choose **Update Quiet** when a new build is available.
+Just open Quiet Scores. When a new build exists, it offers the update right away; confirm with
+**Update**.
